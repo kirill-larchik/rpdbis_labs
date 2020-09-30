@@ -1,0 +1,5 @@
+{
+  "ConnectionStrings": {
+    "SQLConnection": "Server=ASUS-PC\\SQLEXPRESS;Database=TvChannel;Trusted_Connection=True;"
+  }
+}
