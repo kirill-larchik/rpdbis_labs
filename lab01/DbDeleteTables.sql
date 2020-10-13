@@ -1,10 +1,16 @@
 use TvChannel
 
 DELETE FROM Timetables
+DELETE FROM Appeals
 DELETE FROM Shows
 DELETE FROM Genres
+DELETE FROM Staff
+DELETE FROM Positions
 
 DBCC CHECKIDENT('[Genres]', RESEED, 0);
 DBCC CHECKIDENT('[Shows]', RESEED, 0);
 DBCC CHECKIDENT('[Timetables]', RESEED, 0);
+DBCC CHECKIDENT('[Appeals]', RESEED, 0);
+DBCC CHECKIDENT('[Positions]', RESEED, 0);
+DBCC CHECKIDENT('[Staff]', RESEED, 0);
 GO

@@ -29,7 +29,19 @@ DECLARE @Letters CHAR(52) = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxy
 		@Year int,
 		@ShowId int,
 		@StartTime time,
-		@EndTime time
+		@EndTime time,
+
+		-- Таблица "Appeals"
+		@AppealFullName varchar(64),
+		@AppealOrganization varchar(64),
+		@GoalRequest varchar(128),
+
+		-- Таблица "Positions"
+		@PositionName varchar(16),
+
+		-- Таблица "Staff"
+		@PositionId int,
+		@StaffFullName varchar(64)
 
 SET NOCOUNT ON
 
@@ -141,6 +153,117 @@ BEGIN
 
 	INSERT INTO Timetables (DayOfWeek, Month, Year, ShowId, StartTime, EndTime) VALUES
 		(@DayOfWeek, @Month, @Year, @ShowId, @StartTime, @EndTime)
+
+	SET @RowIndex += 1
+END
+
+-- Таблица "Appeals"
+SET @RowCount = 20000
+SET @RowIndex = 1
+
+WHILE @RowIndex <= @RowCount
+BEGIN
+	-- ФИО Граждана.
+	SET @MinLetters = 12;
+	SET @MaxLetters = 64;
+	SET @LettersLimit = @MinLetters + RAND()*(@MaxLetters - @MinLetters)
+	
+	SET @AppealFullName = ''
+
+	SET @i = 1
+	WHILE @i <= @LettersLimit
+	BEGIN
+		SET @Position = RAND()*52
+		SET @AppealFullName = @AppealFullName + SUBSTRING(@Letters, @Position, 1)
+		SET @i += 1
+	END
+
+	-- Название организации.
+	SET @MinLetters = 12;
+	SET @MaxLetters = 64;
+	SET @LettersLimit = @MinLetters + RAND()*(@MaxLetters - @MinLetters)
+	
+	SET @AppealOrganization = ''
+
+	SET @i = 1
+	WHILE @i <= @LettersLimit
+	BEGIN
+		SET @Position = RAND()*52
+		SET @AppealOrganization = @AppealOrganization + SUBSTRING(@Letters, @Position, 1)
+		SET @i += 1
+	END
+
+	-- ID телепередачи
+	SET @ShowId = RAND(501-1) + 1 
+
+	-- Название организации.
+	SET @MinLetters = 12;
+	SET @MaxLetters = 128;
+	SET @LettersLimit = @MinLetters + RAND()*(@MaxLetters - @MinLetters)
+	
+	SET @GoalRequest = ''
+
+	SET @i = 1
+	WHILE @i <= @LettersLimit
+	BEGIN
+		SET @Position = RAND()*52
+		SET @GoalRequest = @GoalRequest + SUBSTRING(@Letters, @Position, 1)
+		SET @i += 1
+	END
+
+	INSERT INTO Appeals (FullName, Organization, GoalRequest) SELECT @AppealFullName,  @AppealOrganization, @GoalRequest
+
+	SET @RowIndex += 1
+END
+
+-- Таблица "Positions".
+SET @RowCount = 500
+SET @RowIndex = 1
+
+WHILE @RowIndex <= @RowCount
+BEGIN
+	SET @MinLetters = 6;
+	SET @MaxLetters = 16;
+	SET @LettersLimit = @MinLetters + RAND()*(@MaxLetters - @MinLetters)
+	
+	SET @PositionName = ''
+
+	SET @i = 1
+	WHILE @i <= @LettersLimit
+	BEGIN
+		SET @Position = RAND()*52
+		SET @PositionName = @PositionName + SUBSTRING(@Letters, @Position, 1)
+		SET @i += 1
+	END
+
+	INSERT INTO Positions (Name) SELECT @PositionName
+
+	SET @RowIndex += 1
+END
+
+-- Таблица "Staff".
+SET @RowCount = 500
+SET @RowIndex = 1
+
+WHILE @RowIndex <= @RowCount
+BEGIN
+	SET @MinLetters = 12;
+	SET @MaxLetters = 64;
+	SET @LettersLimit = @MinLetters + RAND()*(@MaxLetters - @MinLetters)
+	
+	SET @StaffFullName = ''
+
+	SET @i = 1
+	WHILE @i <= @LettersLimit
+	BEGIN
+		SET @Position = RAND()*52
+		SET @StaffFullName = @StaffFullName + SUBSTRING(@Letters, @Position, 1)
+		SET @i += 1
+	END
+
+	SET @PositionId = RAND(501-1) + 1
+
+	INSERT INTO Staff (FullName, PositionId) SELECT @StaffFullName, @PositionId
 
 	SET @RowIndex += 1
 END
