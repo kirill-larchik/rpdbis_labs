@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace DatabaseLibrary.Models
+namespace WebApplication.Models
 {
     public partial class Genre
     {

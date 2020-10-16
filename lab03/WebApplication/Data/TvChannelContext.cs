@@ -1,11 +1,11 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
-using DatabaseLibrary.Models;
+using WebApplication.Models;
 using Microsoft.Extensions.Configuration;
 using System.IO;
 
-namespace DatabaseLibrary.Data
+namespace WebApplication.Data
 {
     public partial class TvChannelContext : DbContext
     {
