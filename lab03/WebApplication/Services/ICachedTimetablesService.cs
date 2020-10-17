@@ -6,7 +6,7 @@ using WebApplication.Models;
 
 namespace WebApplication.Services
 {
-    public interface ICachedTimetables
+    public interface ICachedTimetablesService
     {
         public IEnumerable<Timetable> GetTimetables(int rowCount = 20);
         public void AddTimetables(string cacheKey, int rowCount = 20);

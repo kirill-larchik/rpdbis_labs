@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Caching.Memory;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +9,7 @@ using WebApplication.Models;
 
 namespace WebApplication.Services
 {
-    public class CachedTimetablesService : ICachedTimetables
+    public class CachedTimetablesService : ICachedTimetablesService
     {
         private TvChannelContext db;
         private IMemoryCache cache;
@@ -22,7 +23,7 @@ namespace WebApplication.Services
         public void AddTimetables(string cacheKey, int rowCount = 20)
         {
             IEnumerable<Timetable> timetables = null;
-            timetables = db.Timetables.Take(rowCount).ToList();
+            timetables = db.Timetables.Include(t => t.Show).Take(rowCount).ToList();
 
             if (timetables != null)
             {
@@ -35,7 +36,7 @@ namespace WebApplication.Services
 
         public IEnumerable<Timetable> GetTimetables(int rowCount = 20)
         {
-            return db.Timetables.Take(rowCount).ToList();
+            return db.Timetables.Include(t => t.Show).Take(rowCount).ToList();
         }
 
         public IEnumerable<Timetable> GetTimetables(string cacheKey, int rowCount = 20)
@@ -44,7 +45,7 @@ namespace WebApplication.Services
 
             if (!cache.TryGetValue(cacheKey, out timetables))
             {
-                timetables = db.Timetables.Take(rowCount).ToList();
+                timetables = db.Timetables.Include(t => t.Show).Take(rowCount).ToList();
 
                 cache.Set(cacheKey, timetables, new MemoryCacheEntryOptions
                 {

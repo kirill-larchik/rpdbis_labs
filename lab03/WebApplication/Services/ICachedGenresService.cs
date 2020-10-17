@@ -6,7 +6,7 @@ using WebApplication.Models;
 
 namespace WebApplication.Services
 {
-    public interface ICachedGenres
+    public interface ICachedGenresService
     {
         public IEnumerable<Genre> GetGenres(int rowCount = 20);
         public void AddGenres(string cacheKey, int rowCount = 20);

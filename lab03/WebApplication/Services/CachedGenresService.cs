@@ -8,7 +8,7 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace WebApplication.Services
 {
-    public class CachedGenresService : ICachedGenres
+    public class CachedGenresService : ICachedGenresService
     {
         private TvChannelContext db;
         private IMemoryCache cache;

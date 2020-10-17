@@ -11,7 +11,7 @@ namespace WebApplication.Data
     {
         public TvChannelContext(DbContextOptions<TvChannelContext> options)
             : base(options) { }
-        
+
         public virtual DbSet<Genre> Genres { get; set; }
         public virtual DbSet<Show> Shows { get; set; }
         public virtual DbSet<Timetable> Timetables { get; set; }

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Caching.Memory;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -9,7 +10,7 @@ using WebApplication.Models;
 
 namespace WebApplication.Services
 {
-    public class CachedShowsService : ICachedShows
+    public class CachedShowsService : ICachedShowsService
     {
         private TvChannelContext db;
         private IMemoryCache cache;
@@ -23,7 +24,7 @@ namespace WebApplication.Services
         public void AddShows(string cacheKey, int rowCount = 20)
         {
             IEnumerable<Show> shows = null;
-            shows = db.Shows.Take(rowCount).ToList();
+            shows = db.Shows.Include(g => g.Genre).Take(rowCount).ToList();
 
             if (shows != null)
             {
@@ -36,7 +37,7 @@ namespace WebApplication.Services
 
         public IEnumerable<Show> GetShows(int rowsCount = 20)
         {
-            return db.Shows.Take(rowsCount).ToList();
+            return db.Shows.Include(g => g.Genre).Take(rowsCount).ToList();
         }
 
         public IEnumerable<Show> GetShows(string cacheKey, int rowCount = 20)
@@ -45,7 +46,7 @@ namespace WebApplication.Services
 
             if (!cache.TryGetValue(cacheKey, out shows))
             {
-                shows = db.Shows.Take(rowCount).ToList();
+                shows = db.Shows.Include(g => g.Genre).Take(rowCount).ToList();
 
                 if (shows != null)
                 {
