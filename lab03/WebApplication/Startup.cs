@@ -14,6 +14,7 @@ using WebApplication.Data;
 using WebApplication.Services;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using WebApplication.Models;
+using WebApplication.Infrastructure;
 
 namespace WebApplication
 {
@@ -36,6 +37,9 @@ namespace WebApplication
             services.AddScoped<ICachedShowsService, CachedShowsService>();
             services.AddScoped<ICachedTimetablesService, CachedTimetablesService>();
 
+            services.AddDistributedMemoryCache();
+            services.AddSession();
+
         }
 
         public IConfiguration Configuration { get; }
@@ -47,6 +51,8 @@ namespace WebApplication
             {
                 app.UseDeveloperExceptionPage();
             }
+
+            app.UseSession();
 
             app.Map("/info", Info);
             app.Map("/genres", Genres);
@@ -66,7 +72,44 @@ namespace WebApplication
                 ICachedTimetablesService cachedTimetablesService = context.RequestServices.GetService<ICachedTimetablesService>();
                 cachedTimetablesService.GetTimetables("timetables20");
 
-                await context.Response.WriteAsync("Page not found");
+                User user = context.Session.Get<User>("user") ?? new User();
+
+                string htmlString = "<html>" +
+                "<head>" +
+                "<title>Форма пользователя</title>" +
+                "<style>" +
+                "div { font-size: 24; }" +
+                "</style>" +
+                "</head>" +
+                "<meta charset='utf-8'/>" +
+                "<body>" +
+                "<div align='center'>" +
+                "<form action='/'>" +
+                "<div>Введите логин:</div>";
+                htmlString += $"<div><input type='text' name='loginStr' value=" + user.Login + "></div>";
+                htmlString += "<div>Введите пароль:</div>";
+                htmlString += $"<div><input type='text' name='passwordStr' value=" + user.Password + "></div>" +
+                "<div><input type='submit' value='Enter/Update'></div>" +
+                "</form>" +
+                "<div><a href='/genres'>Table 'Genres'</a></div>" +
+                "<div><a href='/shows'>Table 'Show'</a></div>" +
+                "<div><a href='/timetables'>Table 'Timetables'</a></div>" +
+                "<div><a href='/searchform'>Search Form</a></div>" +
+                "</div>" +
+                "</body>" +
+                "</html>";
+
+                string Login = context.Request.Query["loginStr"];
+                string Password = context.Request.Query["passwordStr"];
+
+                if(Login != null && Password != null)
+                {
+                    user.Login = Login;
+                    user.Password = Password;
+                    context.Session.Set<User>("user", user);
+                }
+
+                await context.Response.WriteAsync(htmlString);
             });
         }
 
@@ -271,17 +314,32 @@ namespace WebApplication
                 "<form action='/searchform'>" +
                 "<div width=20%>Выберете таблицу</div>" +
                 "<select name='tableName'>" +
+                "<option>Choose table</option>" +
                 "<option>Genres</option>" +
                 "<option>Shows</option>" +
                 "<option>Timetables</option>" +
                 "</select>" +
                 "<input type = 'submit' value = 'Select'>";
 
-                string input;
-                if ((input = context.Request.Query["tableName"]) != null)
+                string selectedText = context.Request.Cookies["table"] ?? context.Request.Query["tableName"];
+
+                if (context.Request.Cookies["table"] == "Choose table")
+                    context.Response.Cookies.Delete("table");
+
+                if (selectedText != null)
                 {
-                    string text = context.Request.Query["tableName"];
-                    switch (text)
+                    if (selectedText != "Choose table" && selectedText != context.Request.Cookies["tableName"])
+                    {
+                        string querySttring = context.Request.Query["tableName"];
+                        if (querySttring != null && querySttring != "Choose table")
+                        {
+                            context.Response.Cookies.Append("table", querySttring);
+                            selectedText = querySttring;
+                        }
+                    }
+                        
+
+                    switch (selectedText)
                     {
                         case "Genres":
                             httpString += "<ul>";
@@ -308,12 +366,12 @@ namespace WebApplication
 
                             foreach (Timetable timetable in timetables)
                             {
-                                httpString += $"<li>{timetable.TimetableId}, ({timetable.Show?.Name}.</li>";
+                                httpString += $"<li>{timetable.TimetableId}, {timetable.Show?.Name}.</li>";
                             }
                             httpString += "</ul>";
                             break;
                     }
-
+                  
                     httpString += "<div>" +
                     "<input type='text' name='entity'>" +
                     "<input type='submit' value='Input'>" +
@@ -322,7 +380,7 @@ namespace WebApplication
                     string entityInput;
                     if ((entityInput = context.Request.Query["entity"]) != null && entityInput != "")
                     {
-                        switch (input)
+                        switch (selectedText)
                         {
                             case "Genres":
                                 Genre genre = genres.FirstOrDefault(g => g.GenreName == entityInput);
@@ -342,7 +400,7 @@ namespace WebApplication
                                     httpString += "<div>" +
                                     "<p>" +
                                     $"Название: {show.Name}, Жанр {show.Genre?.GenreName}, Дата выхода: {show.ReleaseDate.ToString("d")}, " +
-                                    $"Продолжительноть: {show.Duration}, Рейтинг: {show.Mark}." + 
+                                    $"Продолжительноть: {show.Duration}, Рейтинг: {show.Mark}." +
                                     "</p>" +
                                     "</div>";
                                 }
@@ -363,7 +421,6 @@ namespace WebApplication
                         }
                     }
                 }
-                
                 httpString += "</form>" +
                 "<div><a href='/searchform'>Очистить</a></div>" +
                 "<div><a href='/'>Главная</a></div>" +
