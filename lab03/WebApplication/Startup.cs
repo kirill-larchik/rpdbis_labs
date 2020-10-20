@@ -421,6 +421,7 @@ namespace WebApplication
                         }
                     }
                 }
+
                 httpString += "</form>" +
                 "<div><a href='/searchform'>Очистить</a></div>" +
                 "<div><a href='/'>Главная</a></div>" +
