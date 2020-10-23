@@ -1,0 +1,30 @@
+﻿@model IEnumerable<Timetable>
+@{
+    ViewData["Title"] = "Table 'Timetables'";
+}
+<h1>@ViewData["Title"]</h1>
+
+<p align="center">
+    <table border="1">
+        <tr>
+            <td>Day of week</td>
+            <td>Month</td>
+            <td>Year</td>
+            <td>Show</td>
+            <td>Star time</td>
+            <td>End time</td>
+        </tr>
+
+        @foreach (var timetable in Model)
+        {
+            <tr>
+                <td>@timetable.DayOfWeek</td>
+                <td>@timetable.Month</td>
+                <td>@timetable.Year</td>
+                <td>@timetable.Show?.Name</td>
+                <td>@timetable.StartTime</td>
+                <td>@timetable.EndTime</td>
+            </tr>
+        }
+    </table>
+</p>
