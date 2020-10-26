@@ -27,24 +27,6 @@ namespace WebApplication.Controllers
             return View();
         }
 
-        [ResponseCache(CacheProfileName = "CacheProfile")]
-        public IActionResult Genres()
-        {
-            return View(db.Genres.Take(20).ToList());
-        }
-
-        [ResponseCache(CacheProfileName = "CacheProfile")]
-        public IActionResult Shows()
-        {
-            return View(db.Shows.Include(s => s.Genre).Take(20).ToList());
-        }
-
-        [ResponseCache(CacheProfileName = "CacheProfile")]
-        public IActionResult Timetables()
-        {
-            return View(db.Timetables.Include(t => t.Show).Take(20).ToList());
-        }
-
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
