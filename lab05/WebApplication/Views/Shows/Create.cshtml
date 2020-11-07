@@ -1,0 +1,56 @@
+﻿@model WebApplication.ViewModels.ShowsViewModel
+
+<div class="container text-center w-50">
+    <form method="post">
+        <h2>Create new entity</h2>
+
+        <div class="text-danger text-justify w-100 m-lg-0" asp-validation-summary="ModelOnly"></div>
+
+        <p>
+            <label asp-for="Show.Name"></label><br />
+            <input type="text" name="Show.Name" class="w-75" />
+        <p><span class="text-danger" asp-validation-for="Show.Name"></span></p>
+
+        <p>
+            <label asp-for="Show.ReleaseDate"></label><br />
+            <input type="date" name="Show.ReleaseDate" class="w-75" />
+        <p><span class="text-danger" asp-validation-for="Show.ReleaseDate"></span></p>
+
+        <p>
+            <label asp-for="Show.Duration"></label><br />
+            <input type="time" step="1" name="Show.Duration" class="w-75" />
+        <p><span class="text-danger" asp-validation-for="Show.Duration"></span></p>
+
+        <p>
+            <label asp-for="Show.Mark"></label><br />
+            <input type="number" name="Show.Mark" class="w-75" />
+        <p><span class="text-danger" asp-validation-for="Show.Mark"></span></p>
+
+        <p>
+            <label asp-for="Show.MarkMonth"></label><br />
+            <input type="number" name="Show.MarkMonth" class="w-75" />
+        <p><span class="text-danger" asp-validation-for="Show.MarkMonth"></span></p>
+
+        <p>
+            <label asp-for="Show.MarkYear"></label><br />
+            <input type="number" name="Show.MarkYear" class="w-75" />
+        <p><span class="text-danger" asp-validation-for="Show.MarkYear"></span></p>
+
+        <p>
+            <label asp-for="Show.GenreId"></label><br />
+            <select class="w-75" name="Show.GenreId" asp-for="Show.GenreId" asp-items="@(new SelectList(Model.Genres, "GenreId", "GenreName"))">
+                <option selected>Please choose value</option>
+            </select>
+        <p><span class="text-danger" asp-validation-for="Show.GenreId"></span></p>
+
+        <p>
+            <label asp-for="Show.Description"></label><br />
+            <input type="text" name="Show.Description" class="w-75" />
+        <p><span class="text-danger" asp-validation-for="Show.Description"></span></p>
+
+        <p>
+            <input type="submit" value="Add" class="btn btn-success w-75" />
+        <p><a asp-action="Index" asp-route-page="@Model.CurrentHomePage" class="btn btn-danger w-75">Back</a></p>
+    </form>
+</div>
+

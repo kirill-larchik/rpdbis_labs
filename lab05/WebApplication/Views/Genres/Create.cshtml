@@ -1,0 +1,23 @@
+﻿@model WebApplication.ViewModels.GenresViewModel
+
+<div class="container text-center w-50">
+    <form method="post">
+        <h2>Create new entity</h2>
+
+        <div class="text-danger text-justify w-100 m-lg-0" asp-validation-summary="ModelOnly"></div>
+
+        <p>
+            <label asp-for="Genre.GenreName"></label><br />
+            <input type="text" name="Genre.GenreName" class="w-75" />
+        <p><span class="text-danger" asp-validation-for="Genre.GenreName"></span></p>
+
+        <p>
+            <label asp-for="Genre.GenreDescription"></label><br />
+            <input type="text" name="Genre.GenreDescription" class="w-75" />
+        <p><span class="text-danger" asp-validation-for="Genre.GenreDescription"></span></p>
+
+        <p>
+            <input type="submit" value="Add" class="btn btn-success w-75" />
+        <p><a asp-action="Index" asp-route-page="@Model.CurrentHomePage" class="btn btn-danger w-75">Back</a></p>
+    </form>
+</div>

@@ -1,0 +1,51 @@
+﻿@model WebApplication.ViewModels.ShowsViewModel
+
+<div class="container w-50">
+    <table class="table table-sm">
+        <thead class="thead-dark text-center">
+            <tr>
+                <th colspan="2">Detailed description of "@Model.Show.Name"</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr>
+                <td><label asp-for="Show.ReleaseDate"></label></td>
+                <td>@Model.Show.ReleaseDate.ToString("d")</td>
+            </tr>
+
+            <tr>
+                <td><label asp-for="Show.Duration"></label></td>
+                <td>@Model.Show.Duration</td>
+            </tr>
+
+            <tr>
+                <td><label asp-for="Show.Mark"></label></td>
+                <td>@Model.Show.Mark</td>
+            </tr>
+
+            <tr>
+                <td><label asp-for="Show.MarkMonth"></label></td>
+                <td>@Model.Show.MarkMonth</td>
+            </tr>
+
+            <tr>
+                <td><label asp-for="Show.MarkYear"></label></td>
+                <td>@Model.Show.MarkYear</td>
+            </tr>
+
+            <tr>
+                <td><label asp-for="Show.Genre"></label></td>
+                <td>@Model.Show.Genre?.GenreName</td>
+            </tr>
+
+            <tr>
+                <td><label asp-for="Show.Description"></label></td>
+                <td>@Model.Show.Description</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <p>
+        <p><a asp-action="Index" asp-route-page="@Model.CurrentHomePage" class="btn btn-danger w-100">Back</a></p>
+</div>

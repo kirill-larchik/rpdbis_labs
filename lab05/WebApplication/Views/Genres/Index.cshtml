@@ -1,0 +1,55 @@
+﻿@model WebApplication.ViewModels.GenresViewModel
+
+<div class="container w-75">
+    <form asp-route-id="@Model.PageViewModel.PageNumber">
+        <h2 class="text-center">Table 'Genres'</h2>
+       
+        <p>
+            <div class="container">
+                <a asp-action="Create" asp-route-page="@Model.PageViewModel.PageNumber" class="btn btn-primary">Add new entity</a>
+            </div>
+        </p>
+
+        <table class="table table-hover table-sm">
+            <thead class="thead-dark text-center">
+                <tr>
+                    <th class="w-25"><label asp-for="Genre.GenreName"></label></th>
+                    <th class="w-50"><label asp-for="Genre.GenreDescription"></label></th>
+                    <th class="w-25"><label asp-for="Modification"></label></th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @foreach (var entity in Model.Genres)
+                {
+                    <tr>
+                        <td>@entity.GenreName</td>
+                        <td>@entity.GenreDescription</td>
+                        <td class="text-center">
+                            <a asp-action="Edit" asp-route-id="@entity.GenreId" asp-route-page="@Model.PageViewModel.PageNumber" class="btn btn-warning" >Edit</a>
+                            <a asp-action="Delete" asp-route-id="@entity.GenreId" asp-route-page="@Model.PageViewModel.PageNumber" class="btn btn-danger">Delete</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div class="container float-left">
+            <div class="text-left float-left">
+                <input type="number" name="page" value="@Model.PageViewModel.PageNumber" class="w-25"/>
+                <input type="submit" value="Move" class="btn btn-primary"/>
+            </div>
+
+            <div class="text-right float-right">
+                @if (Model.PageViewModel.HasPreviousPage)
+                {
+                    <a asp-action="Index" asp-route-page="@(Model.PageViewModel.PageNumber - 1)" class="btn btn-primary">Back</a>
+                }
+                @if (Model.PageViewModel.HasNextPage)
+                {
+                    <a asp-action="Index" asp-route-page="@(Model.PageViewModel.PageNumber + 1)" class="btn btn-primary">Next</a>
+                }
+            </div>   
+        </div>
+    </form>
+</div>
