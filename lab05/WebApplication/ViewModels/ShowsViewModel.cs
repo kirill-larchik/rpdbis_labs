@@ -14,8 +14,6 @@ namespace WebApplication.ViewModels
         public Show Show { get; set; }
 
 
-        public int DefaultGerneId { get; set; }
-
         [Display(Name = "Modification")]
         public string Modification { get; set; }
         public string Description { get; set; }

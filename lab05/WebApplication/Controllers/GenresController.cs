@@ -5,28 +5,33 @@ using System.Security.Principal;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.Extensions.Caching.Memory;
 using WebApplication.Data;
 using WebApplication.Models;
+using WebApplication.Services;
 using WebApplication.ViewModels;
 
 namespace WebApplication.Controllers
 {
     public class GenresController : Controller
     {
-        private readonly TvChannelContext _context;
+        private readonly TvChannelContext db;
+        private readonly GenreService genreService;
+        private readonly ShowService showService;
 
-        public GenresController(TvChannelContext context)
+        public GenresController(TvChannelContext context, GenreService genreService, ShowService showService)
         {
-            _context = context;
+            db = context;
+            this.genreService = genreService;
+            this.showService = showService;
         }
 
         #region Index
-        public IActionResult Index(int page = 1)
+        public async Task<IActionResult> Index([FromQuery(Name = "page")] int page = 1)
         {
-            IEnumerable<Genre> genres = _context.Genres.ToList();
+            IEnumerable<Genre> genres = await genreService.GetGenres();
 
             int pageSize = 10;
-
             PageViewModel pageViewModel = new PageViewModel(genres.Count(), page, pageSize);
             genres = genres.Skip((pageViewModel.PageNumber - 1) * pageSize).Take(pageSize).ToList();
 
@@ -45,7 +50,6 @@ namespace WebApplication.Controllers
         {
             GenresViewModel model = new GenresViewModel
             {
-                Genre = new Genre(),
                 CurrentHomePage = page
             };
 
@@ -55,15 +59,14 @@ namespace WebApplication.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromForm] GenresViewModel model)
         {
-            if (ModelState.IsValid && CheckUniqueValues(model.Genre))
+            if (ModelState.IsValid & await CheckUniqueValues(model.Genre))
             {
-                // This page for returing to last page of the view.
+                await genreService.AddGenre(model.Genre);
 
-                await _context.AddAsync(model.Genre);
-                await _context.SaveChangesAsync();
-
-                int page = _context.Genres.Count() + 1;
-                return RedirectToAction("Index", "Genres", new { page = page });  
+                IEnumerable<Genre> genres = await genreService.GetGenres();
+                int lastPage = genres.Count();
+                 
+                return RedirectToAction("Index", "Genres", new { page = lastPage });  
             }
 
             return View(model);
@@ -71,9 +74,9 @@ namespace WebApplication.Controllers
         #endregion
 
         #region Edit
-        public async Task<IActionResult> Edit(int? id, int page)
+        public async Task<IActionResult> Edit(int id, int page)
         {
-            Genre genre = await _context.Genres.FindAsync(id);
+            Genre genre = await genreService.GetGenre(id);
 
             if (genre == null)
                 return NotFound();
@@ -90,15 +93,18 @@ namespace WebApplication.Controllers
         [HttpPost]
         public async Task<IActionResult> Edit([FromForm] GenresViewModel model)
         {       
-            if (ModelState.IsValid && CheckUniqueValues(model.Genre))
+            if (ModelState.IsValid & await CheckUniqueValues(model.Genre))
             {
-                Genre genre = _context.Genres.Find(model.Genre.GenreId);
+                Genre tempGenre = new Genre
+                {
+                    GenreName = model.Genre.GenreName,
+                    GenreDescription = model.Genre.GenreDescription
+                };
 
-                genre.GenreName = model.Genre.GenreName;
-                genre.GenreDescription = model.Genre.GenreDescription;
+                Genre genre = await genreService.EditGenre(tempGenre);
 
-                _context.Update(genre);
-                await _context.SaveChangesAsync();
+                if (genre == null)
+                    return NotFound();
 
                 return RedirectToAction("Index", "Genres", new { page = model.CurrentHomePage });
             }
@@ -108,20 +114,21 @@ namespace WebApplication.Controllers
         #endregion
 
         #region Delete
-        public IActionResult Delete(int id, int page)
+        public async Task<IActionResult> Delete(int id, int page)
         {
             bool deleteFlag = true;
             string message = "Do you want to delete this entity";
 
-            Genre genre = _context.Genres.Find(id);
-            if (_context.Shows.Any(s => s.GenreId == genre.GenreId))
-                message = "This entity has entities, which dependents from this. Do you want to delete this entity and other, which dependents from this?";
-
+            Genre genre = await genreService.GetGenre(id);
             if (genre == null)
             {
                 message = "Error. The entity not founded.";
                 deleteFlag = false;
             }
+
+            IEnumerable<Show> shows = await showService.GetShows();
+            if (shows.Any(s => s.GenreId == genre.GenreId))
+                message = "This entity has entities, which dependents from this. Do you want to delete this entity and other, which dependents from this?";
 
             GenresViewModel model = new GenresViewModel
             {
@@ -141,10 +148,8 @@ namespace WebApplication.Controllers
         [HttpPost]
         public async Task<IActionResult> Delete(int page, [FromForm] GenresViewModel model)
         {
-            Genre genre = _context.Genres.Find(model.Genre.GenreId);
-
-            _context.Genres.Remove(genre);
-            await _context.SaveChangesAsync();
+            int id = model.Genre.GenreId;
+            await genreService.DeleteGenre(id);
 
             model.DeleteViewModel = new DeleteViewModel
             {
@@ -158,18 +163,23 @@ namespace WebApplication.Controllers
         }
         #endregion
 
-        private bool CheckUniqueValues(Genre genre)
+        private async Task<bool> CheckUniqueValues(Genre genre)
         {
             bool firstFlag = true;
             bool secondFlag = true;
 
-            if (_context.Genres.FirstOrDefault(m => m.GenreName == genre.GenreName) != null)
+            IEnumerable<Genre> genres = await genreService.GetGenres();
+
+            Genre tempGenre = genres.FirstOrDefault(g => g.GenreName == genre.GenreName);
+            if (tempGenre != null & tempGenre.GenreId != tempGenre.GenreId)
+                if (db.Genres.FirstOrDefault(m => m.GenreName == genre.GenreName) != null)
             {
                 ModelState.AddModelError(string.Empty, "Another entity have this name. Please replace this to another.");
                 firstFlag = false;
             }
 
-            if (_context.Genres.FirstOrDefault(m => m.GenreDescription == genre.GenreDescription) != null)
+            tempGenre = genres.FirstOrDefault(g => g.GenreDescription == genre.GenreDescription);
+            if (tempGenre != null & tempGenre.GenreId != tempGenre.GenreId)
             {
                 ModelState.AddModelError(string.Empty, "Another entity have this description. Please replace this to another.");
                 secondFlag = false;

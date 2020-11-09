@@ -6,26 +6,30 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApplication.Data;
 using WebApplication.Models;
+using WebApplication.Services;
 using WebApplication.ViewModels;
 
 namespace WebApplication.Controllers
 {
     public class ShowsController : Controller
     {
-        private readonly TvChannelContext _context;
+        private readonly TvChannelContext db;
+        private readonly GenreService genreService;
+        private readonly ShowService showService;
 
-        public ShowsController(TvChannelContext context)
+        public ShowsController(TvChannelContext context, GenreService genreService, ShowService showService)
         {
-            _context = context;
+            db = context;
+            this.genreService = genreService;
+            this.showService = showService;
         }
 
         #region Index
-        public IActionResult Index(int page)
+        public async Task<IActionResult> Index([FromQuery(Name = "page")] int page = 1)
         {
-            IEnumerable<Show> shows = _context.Shows.ToList();
+            IEnumerable<Show> shows = await showService.GetShows();
 
             int pageSize = 10;
-
             PageViewModel pageViewModel = new PageViewModel(shows.Count(), page, pageSize);
             shows = shows.Skip((pageViewModel.PageNumber - 1) * pageSize).Take(pageSize).ToList();
 
@@ -40,9 +44,9 @@ namespace WebApplication.Controllers
         #endregion
 
         #region Create
-        public IActionResult Create(int page)
+        public async Task<IActionResult> Create(int page)
         {
-            IEnumerable<Genre> genres = _context.Genres.ToList();
+            IEnumerable<Genre> genres = await genreService.GetGenres();
 
             ShowsViewModel model = new ShowsViewModel
             {
@@ -56,28 +60,32 @@ namespace WebApplication.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromForm] ShowsViewModel model)
         {
-            if (ModelState.IsValid & CheckUniqueValues(model.Show))
-            { 
-                model.Show.Genre = _context.Genres.Find(model.Show.GenreId);
+            IEnumerable<Genre> genres = await genreService.GetGenres();
+           
+            if (ModelState.IsValid & await CheckUniqueValues(model.Show))
+            {
+                await showService.AddShow(model.Show);
 
-                await _context.Shows.AddAsync(model.Show);
-                await _context.SaveChangesAsync();
-
-                int page = _context.Shows.Count();
+                IEnumerable<Show> shows = await showService.GetShows();
+                int page = shows.Count();
 
                 return RedirectToAction("Index", "Shows", new { page = page });
             }
 
-            model.Genres = _context.Genres.ToList();
+            model.Genres = genres;
             return View(model);
         }
         #endregion
 
         #region Edit
-        public IActionResult Edit(int id, int page)
+        public async Task<IActionResult> Edit(int id, int page)
         {
-            Show show = _context.Shows.Include(s => s.Genre).FirstOrDefault(s => s.ShowId == id);
-            IEnumerable<Genre> genres = _context.Genres.ToList();
+            Show show = await showService.GetShow(id);
+
+            if (show == null)
+                return NotFound();
+
+            IEnumerable<Genre> genres = await genreService.GetGenres();
 
             ShowsViewModel model = new ShowsViewModel
             {
@@ -86,45 +94,30 @@ namespace WebApplication.Controllers
                 CurrentHomePage = page
             };
 
-            if (show == null)
-                return NotFound();
-
             return View(model);
         }
 
+        /// <summary>
+        /// //
+        /// </summary>
+        /// <param name="model"></param>
+        /// <returns></returns>
         [HttpPost]
         public async Task<IActionResult> Edit([FromForm] ShowsViewModel model)
         {
-            model.Genres = _context.Genres.ToList();
-            model.Show.Genre = _context.Genres.Find(model.Show.GenreId);
+            IEnumerable<Genre> genres = await genreService.GetGenres();
+            model.Genres = genres;
 
-            if (model.Show.Genre == null)
+            if (ModelState.IsValid & await CheckUniqueValues(model.Show))
             {
-                ModelState.AddModelError(string.Empty, "Please choose a genre.");
-                
-                model.Show.GenreId = model.DefaultGerneId;
-                model.Show.Genre = _context.Genres.Find(model.DefaultGerneId);
-            }
-
-            if (ModelState.IsValid && CheckUniqueValues(model.Show))
-            {
+                // Можно ли по-другому?
                 if (model.Show.MarkYear > model.Show.ReleaseDate.Year ||
                     (model.Show.MarkYear == model.Show.ReleaseDate.Year && model.Show.MarkMonth >= model.Show.ReleaseDate.Month))
                 {
-                    Show show = _context.Shows.Find(model.Show.ShowId);
+                    Show show = await showService.EditShow(model.Show);
 
-                    show.Name = model.Show.Name;
-                    show.ReleaseDate = model.Show.ReleaseDate;
-                    show.Duration = model.Show.Duration;
-                    show.Mark = model.Show.Mark;
-                    show.MarkMonth = model.Show.MarkMonth;
-                    show.MarkYear = model.Show.MarkYear;
-                    show.GenreId = model.Show.GenreId;
-                    show.Genre = model.Show.Genre;
-                    show.Description = model.Show.Description;
-
-                    _context.Shows.Update(show);
-                    await _context.SaveChangesAsync();
+                    if (show == null)
+                        return NotFound();
 
                     return RedirectToAction("Index", "Shows", new { page = model.CurrentHomePage });
                 }
@@ -139,9 +132,9 @@ namespace WebApplication.Controllers
         #endregion
 
         #region Details
-        public IActionResult Details(int id, int page)
+        public async Task<IActionResult> Details(int id, int page)
         {
-            Show show = _context.Shows.Include(s => s.Genre).FirstOrDefault(s => s.ShowId == id);
+            Show show = await showService.GetShow(id);
 
             if (show == null)
                 return NotFound();
@@ -157,23 +150,22 @@ namespace WebApplication.Controllers
         #endregion
 
         #region Delete
-        public IActionResult Delete(int id, int page)
+        public async Task<IActionResult> Delete(int id, int page)
         {
             bool deleteFlag = true;
             string message = "Do you want to delete this entity";
-            
-            Show show = _context.Shows.Find(id);
-            //TODO: Add table 'Appeals'
-            if (_context.Timetables.Any(t => t.ShowId == show.ShowId))
-            {
-                message = "This entity has entities, which dependents from this. Do you want to delete this entity and other, which dependents from this?";
-            }
 
+            Show show = await showService.GetShow(id);
             if (show == null)
             {
                 message = "Error. The entity not founded.";
                 deleteFlag = false;
             }
+
+            //TODO: Add table 'Appeals'
+            IEnumerable<Show> shows = await showService.GetShows();
+            if (db.Timetables.Any(t => t.ShowId == show.ShowId))
+                message = "This entity has entities, which dependents from this. Do you want to delete this entity and other, which dependents from this?";
 
             ShowsViewModel model = new ShowsViewModel
             {
@@ -193,10 +185,8 @@ namespace WebApplication.Controllers
         [HttpPost]
         public async Task<IActionResult> Delete(int page, [FromForm] ShowsViewModel model)
         {
-            Show show = _context.Shows.Find(model.Show.ShowId);
-
-            _context.Shows.Remove(show);
-            await _context.SaveChangesAsync();
+            int id = model.Show.ShowId;
+            await showService.DeleteShow(id);
 
             model.DeleteViewModel = new DeleteViewModel
             {
@@ -210,18 +200,22 @@ namespace WebApplication.Controllers
         }
         #endregion 
 
-        private bool CheckUniqueValues(Show show)
+        private async Task<bool> CheckUniqueValues(Show show)
         {
             bool firstFlag = true;
             bool secondFlag = true;
 
-            if (_context.Shows.FirstOrDefault(s => s.Name == show.Name) != null)
+            IEnumerable<Show> shows = await showService.GetShows();
+
+            Show tempShow = shows.FirstOrDefault(s => s.Name == show.Name);
+            if (tempShow != null & tempShow.ShowId != show.ShowId)
             {
                 ModelState.AddModelError(string.Empty, "Another entity have this name. Please replace this to another.");
                 firstFlag = false;
             }
 
-            if (_context.Shows.FirstOrDefault(s => s.Description == show.Description) != null)
+            tempShow = shows.FirstOrDefault(s => s.Description == show.Description);
+            if (tempShow != null & tempShow.ShowId != show.ShowId)
             {
                 ModelState.AddModelError(string.Empty, "Another entity have this description. Please replace this to another.");
                 secondFlag = false;

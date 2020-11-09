@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApplication.Data;
 using WebApplication.Models;
+using WebApplication.Services;
 using WebApplication.ViewModels;
 
 namespace WebApplication.Controllers
@@ -13,16 +14,20 @@ namespace WebApplication.Controllers
     public class TimetablesController : Controller
     {
         private readonly TvChannelContext _context;
+        private readonly TimetableService timetableService;
+        private readonly ShowService showService;
 
-        public TimetablesController(TvChannelContext context)
+        public TimetablesController(TvChannelContext context, TimetableService timetableService, ShowService showService)
         {
             _context = context;
+            this.timetableService = timetableService;
+            this.showService = showService;
         }
 
         #region Index
-        public IActionResult Index(int page)
+        public async Task<IActionResult> Index([FromQuery(Name = "page")] int page = 1)
         {
-            IEnumerable<Timetable> timetables = _context.Timetables.Include(t => t.Show).ToList();
+            IEnumerable<Timetable> timetables = await timetableService.GetTimetables();
 
             int pageSize = 10;
 
@@ -40,9 +45,9 @@ namespace WebApplication.Controllers
         #endregion
 
         #region Create
-        public IActionResult Create(int page)
+        public async Task<IActionResult> Create(int page)
         {
-            IEnumerable<Show> shows = _context.Shows.ToList();
+            IEnumerable<Show> shows = await showService.GetShows();
 
             TimetablesViewModel model = new TimetablesViewModel
             {
@@ -56,38 +61,40 @@ namespace WebApplication.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromForm] TimetablesViewModel model)
         {
+            model.Shows = await showService.GetShows();
+            Show show = await showService.GetShow(model.Timetable.ShowId);
+
             if (ModelState.IsValid)
             {
-                model.Timetable.Show = _context.Shows.Find(model.Timetable.ShowId);
-                if (model.Timetable.Year > model.Timetable.Show.ReleaseDate.Year ||
-                    (model.Timetable.Year == model.Timetable.Show.ReleaseDate.Year && model.Timetable.Month >= model.Timetable.Show.ReleaseDate.Month))
+                // Можно ли по-другому?
+                if (model.Timetable.Year > show.ReleaseDate.Year ||
+                    (model.Timetable.Year == show.ReleaseDate.Year && model.Timetable.Month >= show.ReleaseDate.Month))
                 {
-                    model.Timetable.EndTime = model.Timetable.StartTime + model.Timetable.Show.Duration;
+                    model.Timetable.EndTime = model.Timetable.StartTime + show.Duration;
 
-                    await _context.Timetables.AddAsync(model.Timetable);
-                    await _context.SaveChangesAsync();
+                    await timetableService.AddTimetable(model.Timetable);
 
-                    int page = _context.Timetables.Count();
+                    IEnumerable<Timetable> timetables = await timetableService.GetTimetables();
+                    int page = timetables.Count();
 
                     return RedirectToAction("Index", "Timetables", new { page = page });
                 }
                 else
                 {
-                    Show show = _context.Shows.Find(model.Timetable.ShowId);
                     ModelState.AddModelError(string.Empty, $"Month and(or) year must be more then release date ({show.ReleaseDate.ToString("d")})");
                 }
             }
 
-            model.Shows = _context.Shows.ToList();
+           
             return View(model);
         }
         #endregion
 
         #region Edit
-        public IActionResult Edit(int id, int page)
+        public async Task<IActionResult> Edit(int id, int page)
         {
-            Timetable timetable = _context.Timetables.Include(t => t.Show).FirstOrDefault(t => t.TimetableId == id);
-            IEnumerable<Show> shows = _context.Shows.ToList();
+            Timetable timetable = await timetableService.GetTimetable(id);
+            IEnumerable<Show> shows = await showService.GetShows();
 
             TimetablesViewModel model = new TimetablesViewModel
             {
@@ -105,40 +112,26 @@ namespace WebApplication.Controllers
         [HttpPost]
         public async Task<IActionResult> Edit([FromForm] TimetablesViewModel model)
         {
-            model.Shows = _context.Shows.ToList();
-            model.Timetable.Show = _context.Shows.Find(model.Timetable.ShowId);
-
-            if (model.Timetable.Show == null)
-            {
-                ModelState.AddModelError(string.Empty, "Please choose a show.");
-
-                model.Timetable.ShowId = model.DefaultShowId;
-                model.Timetable.Show = _context.Shows.Find(model.DefaultShowId);
-            }
+            model.Shows = await showService.GetShows();
+            Show show = await showService.GetShow(model.Timetable.ShowId);
 
             if (ModelState.IsValid)
             {
-                if (model.Timetable.Year > model.Timetable.Show.ReleaseDate.Year ||
-                    (model.Timetable.Year == model.Timetable.Show.ReleaseDate.Year && model.Timetable.Month >= model.Timetable.Show.ReleaseDate.Month))
+                // Можно ли по-другому?
+                if (model.Timetable.Year > show.ReleaseDate.Year ||
+                   (model.Timetable.Year == show.ReleaseDate.Year && model.Timetable.Month >= show.ReleaseDate.Month))
                 {
-                    Timetable timetable = _context.Timetables.Find(model.Timetable.TimetableId);
+                    model.Timetable.EndTime = model.Timetable.StartTime + show.Duration;
 
-                    timetable.DayOfWeek = model.Timetable.DayOfWeek;
-                    timetable.Month = model.Timetable.Month;
-                    timetable.Year = model.Timetable.Year;
-                    timetable.StartTime = model.Timetable.StartTime;
-                    timetable.EndTime = model.Timetable.StartTime + model.Timetable.Show.Duration;
-                    timetable.Show = model.Timetable.Show;
-                    //TODO: Add a staff.
+                    Timetable timetable = await timetableService.EditTimetable(model.Timetable);
 
-                    _context.Timetables.Update(timetable);
-                    await _context.SaveChangesAsync();
+                    if (timetable == null)
+                        return NotFound();
 
                     return RedirectToAction("Index", "Timetables", new { page = model.CurrentHomePage });
                 }
                 else
                 {
-                    Show show = _context.Shows.Find(model.Timetable.ShowId);
                     ModelState.AddModelError(string.Empty, $"Month and(or) year must be more then release date ({show.ReleaseDate.ToString("d")})");
                 }
             }
@@ -148,19 +141,19 @@ namespace WebApplication.Controllers
         #endregion
 
         #region Delete
-        public IActionResult Delete(int id, int page)
+        public async Task<IActionResult> Delete(int id, int page)
         {
             bool deleteFlag = true;
             string message = "Do you want to delete this entity";
 
-            Timetable timetable = _context.Timetables.Find(id);
-
+            Timetable timetable = await timetableService.GetTimetable(id);
             if (timetable == null)
             {
                 message = "Error. The entity not founded.";
                 deleteFlag = false;
             }
 
+            //TODO: Add table "Staff"
             TimetablesViewModel model = new TimetablesViewModel
             {
                 DeleteViewModel = new DeleteViewModel
@@ -179,10 +172,8 @@ namespace WebApplication.Controllers
         [HttpPost]
         public async Task<IActionResult> Delete(int page, [FromForm] TimetablesViewModel model)
         {
-            Timetable timetable = _context.Timetables.Find(model.Timetable.TimetableId);
-
-            _context.Timetables.Remove(timetable);
-            await _context.SaveChangesAsync();
+            int id = model.Timetable.TimetableId;
+            await timetableService.DeleteTimetable(id);
 
             model.DeleteViewModel = new DeleteViewModel
             {

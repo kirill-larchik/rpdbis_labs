@@ -3,10 +3,9 @@
 <div class="container text-center align-middle w-50">
     <form method="post">
         <h2>Edit show</h2>
-        
+
         <p>
             <input type="text" name="Show.ShowId" value="@Model.Show.ShowId" hidden />
-            <input type="text" name="DefaultGerneId" value="@Model.Show.GenreId" hidden />
             <input name="CurrentHomePage" value="@Model.CurrentHomePage" hidden />
         </p>
 
@@ -51,8 +50,9 @@
         <p>
             <label class="col-form-label" asp-for="Show.GenreId"></label><br />
             <select class="w-75" name="Show.GenreId" asp-for="Show.GenreId" asp-items="@(new SelectList(Model.Genres, "GenreId", "GenreName"))">
-                <option selected value="@Model.Show.Genre.GenreName">Please choose value</option>
+                <option selected>Please choose value</option>
             </select>
+        <p><span class="text-danger" asp-validation-for="Show.GenreId"></span></p>
 
 
         <p>

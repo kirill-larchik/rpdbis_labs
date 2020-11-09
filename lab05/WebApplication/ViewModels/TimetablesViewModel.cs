@@ -14,7 +14,6 @@ namespace WebApplication.ViewModels
         public Timetable Timetable { get; set; }
 
 
-        public int DefaultShowId { get; set; }
 
         [Display(Name = "Modification")]
         public string Modification { get; set; }
