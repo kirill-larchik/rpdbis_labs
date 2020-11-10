@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApplication.Data;
@@ -11,17 +12,21 @@ using WebApplication.ViewModels;
 
 namespace WebApplication.Controllers
 {
+    [Authorize]
     public class ShowsController : Controller
     {
         private readonly TvChannelContext db;
+
         private readonly GenreService genreService;
         private readonly ShowService showService;
+        private readonly TimetableService timetableService;
 
-        public ShowsController(TvChannelContext context, GenreService genreService, ShowService showService)
+        public ShowsController(TvChannelContext context, GenreService genreService, ShowService showService, TimetableService timetableService)
         {
             db = context;
             this.genreService = genreService;
             this.showService = showService;
+            this.timetableService = timetableService;
         }
 
         #region Index
@@ -97,11 +102,6 @@ namespace WebApplication.Controllers
             return View(model);
         }
 
-        /// <summary>
-        /// //
-        /// </summary>
-        /// <param name="model"></param>
-        /// <returns></returns>
         [HttpPost]
         public async Task<IActionResult> Edit([FromForm] ShowsViewModel model)
         {
@@ -163,8 +163,8 @@ namespace WebApplication.Controllers
             }
 
             //TODO: Add table 'Appeals'
-            IEnumerable<Show> shows = await showService.GetShows();
-            if (db.Timetables.Any(t => t.ShowId == show.ShowId))
+            IEnumerable<Timetable> timetables = await timetableService.GetTimetables();
+            if (timetables.Any(t => t.ShowId == show.ShowId))
                 message = "This entity has entities, which dependents from this. Do you want to delete this entity and other, which dependents from this?";
 
             ShowsViewModel model = new ShowsViewModel
@@ -208,17 +208,23 @@ namespace WebApplication.Controllers
             IEnumerable<Show> shows = await showService.GetShows();
 
             Show tempShow = shows.FirstOrDefault(s => s.Name == show.Name);
-            if (tempShow != null & tempShow.ShowId != show.ShowId)
+            if (tempShow != null)
             {
-                ModelState.AddModelError(string.Empty, "Another entity have this name. Please replace this to another.");
-                firstFlag = false;
+                if (tempShow.ShowId != show.ShowId)
+                {
+                    ModelState.AddModelError(string.Empty, "Another entity have this name. Please replace this to another.");
+                    firstFlag = false;
+                }
             }
 
             tempShow = shows.FirstOrDefault(s => s.Description == show.Description);
-            if (tempShow != null & tempShow.ShowId != show.ShowId)
+            if (tempShow != null)
             {
-                ModelState.AddModelError(string.Empty, "Another entity have this description. Please replace this to another.");
-                secondFlag = false;
+                if (tempShow.ShowId != show.ShowId)
+                {
+                    ModelState.AddModelError(string.Empty, "Another entity have this name. Please replace this to another.");
+                    firstFlag = false;
+                }
             }
 
             if (firstFlag && secondFlag)

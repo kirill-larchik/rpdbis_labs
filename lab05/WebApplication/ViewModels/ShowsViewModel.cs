@@ -9,6 +9,7 @@ namespace WebApplication.ViewModels
 {
     public class ShowsViewModel
     {
+        [Display(Name = "Shows")]
         public IEnumerable<Show> Shows { get; set; }
         public IEnumerable<Genre> Genres { get; set; }
         public Show Show { get; set; }

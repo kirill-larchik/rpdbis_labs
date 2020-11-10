@@ -1,0 +1,30 @@
+﻿@model WebApplication.ViewModels.UsersViewModel
+
+<div class="container text-center align-middle w-75">
+    <form method="post">
+        <p>
+            <input asp-for="User.Id" value="@Model.User.Id" hidden />
+            <input asp-for="DeleteViewModel.IsForDelete" value="@Model.DeleteViewModel.IsForDelete" hidden />
+        </p>
+
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        @if (Model.DeleteViewModel.IsForDelete)
+        {
+            <h2>Deletion process</h2>
+
+            <p><h3>@Model.DeleteViewModel.Message</h3></p>
+
+            <p><input type="submit" class="btn btn-danger w-50" value="Delete"></p>
+            <p><a asp-action="Index" class="btn btn-primary w-50">Back</a></p>
+        }
+        else
+        {
+            <h2>Deletion result</h2>
+
+            <p><h3>@Model.DeleteViewModel.Message</h3></p>
+
+            <p><a asp-action="Index" class="btn btn-primary w-50">Back</a></p>
+        }
+    </form>
+</div>

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Principal;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.Caching.Memory;
@@ -13,6 +14,7 @@ using WebApplication.ViewModels;
 
 namespace WebApplication.Controllers
 {
+    [Authorize]
     public class GenresController : Controller
     {
         private readonly TvChannelContext db;
@@ -95,13 +97,7 @@ namespace WebApplication.Controllers
         {       
             if (ModelState.IsValid & await CheckUniqueValues(model.Genre))
             {
-                Genre tempGenre = new Genre
-                {
-                    GenreName = model.Genre.GenreName,
-                    GenreDescription = model.Genre.GenreDescription
-                };
-
-                Genre genre = await genreService.EditGenre(tempGenre);
+                Genre genre = await genreService.EditGenre(model.Genre);
 
                 if (genre == null)
                     return NotFound();
@@ -171,18 +167,23 @@ namespace WebApplication.Controllers
             IEnumerable<Genre> genres = await genreService.GetGenres();
 
             Genre tempGenre = genres.FirstOrDefault(g => g.GenreName == genre.GenreName);
-            if (tempGenre != null & tempGenre.GenreId != tempGenre.GenreId)
-                if (db.Genres.FirstOrDefault(m => m.GenreName == genre.GenreName) != null)
+            if (tempGenre != null)
             {
-                ModelState.AddModelError(string.Empty, "Another entity have this name. Please replace this to another.");
-                firstFlag = false;
+                if (tempGenre.GenreId != tempGenre.GenreId)
+                {
+                    ModelState.AddModelError(string.Empty, "Another entity have this name. Please replace this to another.");
+                    firstFlag = false;
+                }
             }
 
             tempGenre = genres.FirstOrDefault(g => g.GenreDescription == genre.GenreDescription);
-            if (tempGenre != null & tempGenre.GenreId != tempGenre.GenreId)
+            if (tempGenre != null)
             {
-                ModelState.AddModelError(string.Empty, "Another entity have this description. Please replace this to another.");
-                secondFlag = false;
+                if (tempGenre.GenreId != tempGenre.GenreId)
+                {
+                    ModelState.AddModelError(string.Empty, "Another entity have this name. Please replace this to another.");
+                    firstFlag = false;
+                }
             }
 
             if (firstFlag && secondFlag)

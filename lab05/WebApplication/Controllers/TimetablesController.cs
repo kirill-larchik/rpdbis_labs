@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebApplication.Data;
@@ -11,15 +12,16 @@ using WebApplication.ViewModels;
 
 namespace WebApplication.Controllers
 {
+    [Authorize]
     public class TimetablesController : Controller
     {
-        private readonly TvChannelContext _context;
+        private readonly TvChannelContext db;
         private readonly TimetableService timetableService;
         private readonly ShowService showService;
 
         public TimetablesController(TvChannelContext context, TimetableService timetableService, ShowService showService)
         {
-            _context = context;
+            db = context;
             this.timetableService = timetableService;
             this.showService = showService;
         }

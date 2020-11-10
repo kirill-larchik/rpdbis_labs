@@ -9,6 +9,7 @@ namespace WebApplication.ViewModels
 {
     public class TimetablesViewModel
     {
+        [Display(Name = "Timetables")]
         public IEnumerable<Timetable> Timetables { get; set; }
         public IEnumerable<Show> Shows { get; set; }
         public Timetable Timetable { get; set; }

@@ -9,6 +9,7 @@ namespace WebApplication.ViewModels
 {
     public class GenresViewModel
     {
+        [Display(Name = "Genres")]
         public IEnumerable<Genre> Genres { get; set; }
         public Genre Genre { get; set; }
 

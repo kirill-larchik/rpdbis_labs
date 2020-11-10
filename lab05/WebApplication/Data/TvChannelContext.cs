@@ -10,7 +10,10 @@ namespace WebApplication.Data
     public partial class TvChannelContext : DbContext
     {
         public TvChannelContext(DbContextOptions<TvChannelContext> options)
-            : base(options) { }
+            : base(options) 
+        {
+            Database.EnsureCreated();
+        }
 
         public virtual DbSet<Genre> Genres { get; set; }
         public virtual DbSet<Show> Shows { get; set; }
