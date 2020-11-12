@@ -4,11 +4,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using WebApplication.Data;
 using WebApplication.Models;
 using WebApplication.Services;
 using WebApplication.ViewModels;
+using WebApplication.ViewModels.Entities;
 
 namespace WebApplication.Controllers
 {
@@ -17,197 +19,176 @@ namespace WebApplication.Controllers
     {
         private readonly TvChannelContext db;
 
-        private readonly GenreService genreService;
-        private readonly ShowService showService;
-        private readonly TimetableService timetableService;
+        private readonly CachingService<ShowsViewModel, Show> caching;
 
-        public ShowsController(TvChannelContext context, GenreService genreService, ShowService showService, TimetableService timetableService)
+        public ShowsController(TvChannelContext context, CachingService<ShowsViewModel, Show> cachingService)
         {
             db = context;
-            this.genreService = genreService;
-            this.showService = showService;
-            this.timetableService = timetableService;
+            caching = cachingService;
         }
 
-        #region Index
-        public async Task<IActionResult> Index([FromQuery(Name = "page")] int page = 1)
+        public IActionResult Index([FromQuery(Name = "page")] int page = 1)
         {
-            IEnumerable<Show> shows = await showService.GetShows();
-
-            int pageSize = 10;
-            PageViewModel pageViewModel = new PageViewModel(shows.Count(), page, pageSize);
-            shows = shows.Skip((pageViewModel.PageNumber - 1) * pageSize).Take(pageSize).ToList();
-
-            ShowsViewModel model = new ShowsViewModel
+            ShowsViewModel model = null;
+            if (caching.HasEntity(page))
+                model = caching.GetEntity(page);
+            else
             {
-                Shows = shows,
-                PageViewModel = pageViewModel
-            };
+                model = new ShowsViewModel();
+                model.PageViewModel = new PageViewModel { CurrentPage = page };
+
+                int count = db.Shows.Count();
+                int pageSize = 10;
+                model.PageViewModel.SetPages(count, pageSize);
+
+                IQueryable<Show> shows = db.Shows.Include(s => s.Genre).AsQueryable();
+                model.Entities = shows.Skip((model.PageViewModel.CurrentPage - 1) * pageSize).Take(pageSize).ToList();
+
+                caching.AddEntity(model);
+            }
 
             return View(model);
         }
-        #endregion
 
-        #region Create
-        public async Task<IActionResult> Create(int page)
+        public IActionResult Create(int page)
         {
-            IEnumerable<Genre> genres = await genreService.GetGenres();
-
-            ShowsViewModel model = new ShowsViewModel
-            {
-                Genres = genres,
-                CurrentHomePage = page
-            };
+            ShowsViewModel model = new ShowsViewModel();
+            model.PageViewModel = new PageViewModel { CurrentPage = page };
+            model.SelectList = new SelectList(db.Genres.ToList(), "GenreId", "GenreName");
 
             return View(model);
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromForm] ShowsViewModel model)
+        public async Task<IActionResult> Create(ShowsViewModel model)
         {
-            IEnumerable<Genre> genres = await genreService.GetGenres();
-           
-            if (ModelState.IsValid & await CheckUniqueValues(model.Show))
+            if (ModelState.IsValid & CheckUniqueValues(model.Entity))
             {
-                await showService.AddShow(model.Show);
+                await db.Shows.AddAsync(model.Entity);
+                await db.SaveChangesAsync();
 
-                IEnumerable<Show> shows = await showService.GetShows();
-                int page = shows.Count();
+                int page = db.Shows.Count();
+                caching.Clear(page);
 
                 return RedirectToAction("Index", "Shows", new { page = page });
             }
 
-            model.Genres = genres;
+            model.SelectList = new SelectList(db.Genres.ToList(), "GenreId", "GenreName");
             return View(model);
         }
-        #endregion
 
-        #region Edit
         public async Task<IActionResult> Edit(int id, int page)
         {
-            Show show = await showService.GetShow(id);
-
-            if (show == null)
-                return NotFound();
-
-            IEnumerable<Genre> genres = await genreService.GetGenres();
-
-            ShowsViewModel model = new ShowsViewModel
+            Show show = await db.Shows.Include(s => s.Genre).FirstOrDefaultAsync(s => s.ShowId == id);
+            if (show != null)
             {
-                Show = show,
-                Genres = genres,
-                CurrentHomePage = page
-            };
+                ShowsViewModel model = new ShowsViewModel();
+                model.PageViewModel = new PageViewModel { CurrentPage = page };
+                model.Entity = show;
+                model.SelectList = new SelectList(db.Genres.ToList(), "GenreId", "GenreName");
 
-            return View(model);
+                return View(model);
+            }
+
+            return NotFound();
         }
 
         [HttpPost]
-        public async Task<IActionResult> Edit([FromForm] ShowsViewModel model)
+        public async Task<IActionResult> Edit(ShowsViewModel model)
         {
-            IEnumerable<Genre> genres = await genreService.GetGenres();
-            model.Genres = genres;
-
-            if (ModelState.IsValid & await CheckUniqueValues(model.Show))
+            if (ModelState.IsValid & CheckUniqueValues(model.Entity))
             {
-                // Можно ли по-другому?
-                if (model.Show.MarkYear > model.Show.ReleaseDate.Year ||
-                    (model.Show.MarkYear == model.Show.ReleaseDate.Year && model.Show.MarkMonth >= model.Show.ReleaseDate.Month))
+                Show show = await db.Shows.FindAsync(model.Entity.ShowId);
+                if (show != null)
                 {
-                    Show show = await showService.EditShow(model.Show);
+                    if (model.Entity.MarkYear > model.Entity.ReleaseDate.Year ||
+                        (model.Entity.MarkYear == model.Entity.ReleaseDate.Year && model.Entity.MarkMonth >= model.Entity.ReleaseDate.Month))
+                    {
+                        show.Name = model.Entity.Name;
+                        show.ReleaseDate = model.Entity.ReleaseDate;
+                        show.Duration = model.Entity.Duration;
+                        show.Mark = model.Entity.Mark;
+                        show.MarkMonth = model.Entity.MarkMonth;
+                        show.MarkYear = model.Entity.MarkYear;
+                        show.GenreId = model.Entity.GenreId;
+                        show.Description = model.Entity.Description;
 
-                    if (show == null)
-                        return NotFound();
+                        db.Shows.Update(show);
+                        await db.SaveChangesAsync();
+                        caching.Clear(model.PageViewModel.CurrentPage);
 
-                    return RedirectToAction("Index", "Shows", new { page = model.CurrentHomePage });
+                        return RedirectToAction("Index", "Shows", new { page = model.PageViewModel.CurrentPage });
+                    }
+                    else
+                    {
+                        ModelState.AddModelError(string.Empty, "Mark year(month) must be more then release date.");
+                    }
                 }
                 else
                 {
-                    ModelState.AddModelError(string.Empty, "Mark year(month) must be more then release date.");
+                    return NotFound();
                 }
             }
 
+            model.SelectList = new SelectList(db.Genres.ToList(), "GenreId", "GenreName");
             return View(model);
         }
-        #endregion
 
-        #region Details
         public async Task<IActionResult> Details(int id, int page)
         {
-            Show show = await showService.GetShow(id);
-
+            Show show = await db.Shows.Include(s => s.Genre).FirstOrDefaultAsync(s => s.ShowId == id);
             if (show == null)
                 return NotFound();
 
-            ShowsViewModel model = new ShowsViewModel
-            {
-                Show = show,
-                CurrentHomePage = page
-            };
+            ShowsViewModel model = new ShowsViewModel();
+            model.Entity = show;
+            model.PageViewModel = new PageViewModel { CurrentPage = page };
 
             return View(model);
         }
-        #endregion
 
-        #region Delete
         public async Task<IActionResult> Delete(int id, int page)
         {
-            bool deleteFlag = true;
+            Show show = await db.Shows.FindAsync(id);
+            if (show == null)
+                return NotFound();
+
+            bool deleteFlag = false;
             string message = "Do you want to delete this entity";
 
-            Show show = await showService.GetShow(id);
-            if (show == null)
-            {
-                message = "Error. The entity not founded.";
-                deleteFlag = false;
-            }
-
-            //TODO: Add table 'Appeals'
-            IEnumerable<Timetable> timetables = await timetableService.GetTimetables();
-            if (timetables.Any(t => t.ShowId == show.ShowId))
+            if (db.Timetables.Any(s => s.ShowId == show.ShowId))
                 message = "This entity has entities, which dependents from this. Do you want to delete this entity and other, which dependents from this?";
 
-            ShowsViewModel model = new ShowsViewModel
-            {
-                DeleteViewModel = new DeleteViewModel
-                {
-                    Message = message,
-                    IsForDelete = deleteFlag
-                },
-                
-                Show = new Show { ShowId = id },
-                CurrentHomePage = page
-            };
+            ShowsViewModel model = new ShowsViewModel();
+            model.Entity = show;
+            model.PageViewModel = new PageViewModel { CurrentPage = page };
+            model.DeleteViewModel = new DeleteViewModel { Message = message, IsDeleted = deleteFlag };
 
             return View(model);
         }
 
         [HttpPost]
-        public async Task<IActionResult> Delete(int page, [FromForm] ShowsViewModel model)
+        public async Task<IActionResult> Delete(ShowsViewModel model)
         {
-            int id = model.Show.ShowId;
-            await showService.DeleteShow(id);
+            Show show = await db.Shows.FindAsync(model.Entity.ShowId);
+            if (show == null)
+                return NotFound();
 
-            model.DeleteViewModel = new DeleteViewModel
-            {
-                Message = $"The entity was successfully deleted.",
-                IsForDelete = false
-            };
+            db.Shows.Remove(show);
+            await db.SaveChangesAsync();
+            caching.Clear(model.PageViewModel.CurrentPage);
 
-            model.CurrentHomePage = page;
+            model.DeleteViewModel = new DeleteViewModel { Message = "The entity was successfully deleted.", IsDeleted = true };
 
             return View(model);
         }
-        #endregion 
 
-        private async Task<bool> CheckUniqueValues(Show show)
+        private bool CheckUniqueValues(Show show)
         {
             bool firstFlag = true;
             bool secondFlag = true;
 
-            IEnumerable<Show> shows = await showService.GetShows();
-
-            Show tempShow = shows.FirstOrDefault(s => s.Name == show.Name);
+            Show tempShow = db.Shows.FirstOrDefault(s => s.Name == show.Name);
             if (tempShow != null)
             {
                 if (tempShow.ShowId != show.ShowId)
@@ -217,7 +198,7 @@ namespace WebApplication.Controllers
                 }
             }
 
-            tempShow = shows.FirstOrDefault(s => s.Description == show.Description);
+            tempShow = db.Shows.FirstOrDefault(s => s.Description == show.Description);
             if (tempShow != null)
             {
                 if (tempShow.ShowId != show.ShowId)

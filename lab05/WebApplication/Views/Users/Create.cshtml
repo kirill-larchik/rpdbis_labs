@@ -1,4 +1,4 @@
-﻿@model WebApplication.ViewModels.UsersViewModel
+﻿@model WebApplication.ViewModels.Entities.UsersViewModel
 
 <form method="post" class="container text-center w-50">
     <h2>Create</h2>
@@ -6,10 +6,10 @@
     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
     <p>
-        <label asp-for="User.Email"></label><br />
-        <input asp-for="User.Email" class="w-75" />
+        <label asp-for="Entity.Email"></label><br />
+        <input asp-for="Entity.Email" class="w-75" />
     <p>
-        <span asp-validation-for="User.Email"></span>
+        <span asp-validation-for="Entity.Email"></span>
     </p>
 
     <p>

@@ -1,48 +1,47 @@
-﻿@model WebApplication.ViewModels.TimetablesViewModel
+﻿@model WebApplication.ViewModels.Entities.TimetablesViewModel
+@{
+    ViewData["Title"] = "Edit";
+}
 
-<div class="container text-center align-middle w-50">
+<div class="container text-center w-50">
     <form method="post">
-        <h2>Edit Timetable</h2>
+        <h2>Edit entity</h2>
+
+        <div>
+            <input hidden asp-for="PageViewModel.CurrentPage" value="@Model.PageViewModel.CurrentPage" />
+            <input hidden asp-for="Entity.TimetableId" value="@Model.Entity.TimetableId" />
+        </div>
+
+        <div asp-validation-summary="ModelOnly" class="text-danger text-justify w-100 m-lg-0"></div>
 
         <p>
-            <input type="number" name="Timetable.TimetableId" value="@Model.Timetable.TimetableId" hidden />
-            <input name="CurrentHomePage" value="@Model.CurrentHomePage" hidden />
-        </p>
-
-        <div class="text-danger text-justify w-100" asp-validation-summary="ModelOnly"></div>
+            <label asp-for="Entity.DayOfWeek"></label><br />
+            <input asp-for="Entity.DayOfWeek" class="w-75" />
+        <p><span asp-validation-for="Entity.DayOfWeek" value="@Model.Entity.DayOfWeek" class="text-danger"></span></p>
 
         <p>
-            <label class="col-form-label" asp-for="Timetable.DayOfWeek"></label><br />
-            <input type="number" name="Timetable.DayOfWeek" value="@Model.Timetable.DayOfWeek" class="w-75" />
-        <p><span class="text-danger" asp-validation-for="Timetable.DayOfWeek"></span></p>
-
-
-        <p>
-            <label class="col-form-label" asp-for="Timetable.Month"></label><br />
-            <input type="number" name="Timetable.Month" value="@Model.Timetable.Month" class="w-75" />
-        <p><span class="text-danger" asp-validation-for="Timetable.Month"></span></p>
-
+            <label asp-for="Entity.Month"></label><br />
+            <input asp-for="Entity.Month" class="w-75" />
+        <p><span asp-validation-for="Entity.Month" value="@Model.Entity.Month" class="text-danger"></span></p>
 
         <p>
-            <label class="col-form-label" asp-for="Timetable.Year"></label><br />
-            <input type="number" step="1" name="Timetable.Year" value="@Model.Timetable.Year" class="w-75" />
-        <p><span class="text-danger" asp-validation-for="Timetable.Year"></span></p>
-
-
-        <p>
-            <label class="col-form-label" asp-for="Timetable.ShowId"></label><br />
-            <select class="w-75" name="Timetable.ShowId" asp-for="Timetable.ShowId" asp-items="@(new SelectList(Model.Shows, "ShowId", "Name"))">
-                <option selected value="@Model.Timetable.Show.Name">Please choose value</option>
-            </select>
-
+            <label asp-for="Entity.Year"></label><br />
+            <input asp-for="Entity.Year" class="w-75" />
+        <p><span asp-validation-for="Entity.Year" value="@Model.Entity.Year" class="text-danger"></span></p>
 
         <p>
-            <label class="col-form-label" asp-for="Timetable.StartTime"></label><br />
-            <input type="time" step="1" name="Timetable.StartTime" value="@Model.Timetable.StartTime" class="w-75" />
-        <p><span class="text-danger" asp-validation-for="Timetable.StartTime"></span></p>
+            <label asp-for="Entity.ShowId"></label><br />
+            <select asp-for="Entity.ShowId" asp-items="Model.SelectList" class="w-75"></select>
+        <p><span asp-validation-for="Entity.ShowId" class="text-danger"></span></p>
 
         <p>
-            <input type="submit" value="Save" class="btn btn-success w-75" />
-        <p><a asp-action="Index" asp-route-page="@Model.CurrentHomePage" class="btn btn-danger w-75">Back</a></p>
+            <label asp-for="Entity.StartTime"></label><br />
+            <input asp-for="Entity.StartTime" class="w-75" />
+        <p><span asp-validation-for="Entity.StartTime" value="@Model.Entity.StartTime" class="text-danger"></span></p>
+
+        <p>
+            <input type="submit" value="Edit" class="btn btn-success w-75" />
+        <p><a asp-action="Index" asp-route-page="@Model.PageViewModel.CurrentPage" class="btn btn-danger w-75">Back</a></p>
     </form>
 </div>
+

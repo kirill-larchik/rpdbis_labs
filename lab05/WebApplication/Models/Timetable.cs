@@ -8,14 +8,18 @@ namespace WebApplication.Models
     {
         public int TimetableId { get; set; }
         [Required]
+        [Display(Name = "Day of week")]
         [Range(1, 7)]
         public int DayOfWeek { get; set; }
         [Required]
+        [Display(Name = "Month")]
         [Range(1, 12)]
         public int Month { get; set; }
         [Required]
+        [Display(Name = "Year")]
         public int Year { get; set; }
         [Required]
+        [Display(Name = "Show")]
         public int ShowId { get; set; }
         [Required]
         [DataType(DataType.Time)]

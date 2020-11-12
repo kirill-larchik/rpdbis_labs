@@ -13,6 +13,7 @@ using Microsoft.Extensions.Hosting;
 using WebApplication.Data;
 using WebApplication.Models;
 using WebApplication.Services;
+using WebApplication.ViewModels.Entities;
 
 namespace WebApplication
 {
@@ -35,9 +36,9 @@ namespace WebApplication
             services.AddIdentity<User, IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationContext>();
 
-            services.AddTransient<GenreService>();
-            services.AddTransient<ShowService>();
-            services.AddTransient<TimetableService>();
+            services.AddTransient<CachingService<GenresViewModel, Genre>>();
+            services.AddTransient<CachingService<ShowsViewModel, Show>>();
+            services.AddTransient<CachingService<TimetablesViewModel, Timetable>>();
 
             services.AddMemoryCache();
 

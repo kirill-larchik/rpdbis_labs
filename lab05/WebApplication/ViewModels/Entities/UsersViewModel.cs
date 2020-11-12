@@ -5,23 +5,19 @@ using System.Linq;
 using System.Threading.Tasks;
 using WebApplication.Models;
 
-namespace WebApplication.ViewModels
+namespace WebApplication.ViewModels.Entities
 {
-    public class UsersViewModel
+    public class UsersViewModel : IEntitiesViewModel<User>
     {
         [Display(Name = "Users")]
-        public IEnumerable<User> Users { get; set; }
-        public User User { get; set; }
-
-
-        [Display(Name = "Modification")]
-        public string Modification { get; set; }
+        public IEnumerable<User> Entities { get; set; }
+        [Display(Name = "User")]
+        public User Entity { get; set; }
 
         [Required]
         [Display(Name = "Password")]
         [DataType(DataType.Password)]
         public string Password { get; set; }
-
 
         [Required]
         [Display(Name = "New password")]
@@ -29,6 +25,7 @@ namespace WebApplication.ViewModels
         public string NewPassword { get; set; }
 
 
+        public PageViewModel PageViewModel { get; set; }
         public DeleteViewModel DeleteViewModel { get; set; }
     }
 }

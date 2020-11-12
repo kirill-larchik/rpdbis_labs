@@ -7,26 +7,25 @@ namespace WebApplication.ViewModels
 {
     public class PageViewModel
     {
-        public int PageNumber { get; private set; }
+        public int CurrentPage { get; set; }
         public int TotalPages { get; private set; }
 
-        public PageViewModel(int count, int pageNumber = 1, int pageSize = 20)
+        public void SetPages(int count, int pageSize = 10)
         {
-            PageNumber = pageNumber;
             TotalPages = (int)Math.Ceiling(count / (double)pageSize);
 
-            if (PageNumber <= 0)
-                PageNumber = 1;
+            if (CurrentPage <= 0)
+                CurrentPage = 1;
 
-            if (PageNumber > TotalPages)
-                PageNumber = TotalPages;
+            if (CurrentPage > TotalPages)
+                CurrentPage = TotalPages;
         }
 
         public bool HasPreviousPage
         {
             get
             {
-                return (PageNumber > 1);
+                return (CurrentPage > 1);
             }
         }
 
@@ -34,7 +33,7 @@ namespace WebApplication.ViewModels
         {
             get
             {
-                return (PageNumber < TotalPages);
+                return (CurrentPage < TotalPages);
             }
         }
     }

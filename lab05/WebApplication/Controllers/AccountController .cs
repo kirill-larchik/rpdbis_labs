@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using WebApplication.Models;
 using WebApplication.ViewModels;
+using WebApplication.ViewModels.Account;
 
 namespace WebApplication.Controllers
 {

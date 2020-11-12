@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using WebApplication.Models;
 using WebApplication.ViewModels;
+using WebApplication.ViewModels.Entities;
 
 namespace WebApplication.Controllers
 {
@@ -28,7 +29,7 @@ namespace WebApplication.Controllers
 
             UsersViewModel model = new UsersViewModel
             {
-                Users = users
+                Entities = users
             };
 
             return View(model);
@@ -38,7 +39,7 @@ namespace WebApplication.Controllers
         {
             UsersViewModel model = new UsersViewModel
             {
-                User = new User()
+                Entity = new User()
             };
 
             return View(model);
@@ -47,14 +48,14 @@ namespace WebApplication.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(UsersViewModel model)
         {
-            if (ModelState.IsValid & CheckUniqueValues(model.User))
+            if (ModelState.IsValid & CheckUniqueValues(model.Entity))
             {
-                model.User.UserName = model.User.Email;
+                model.Entity.UserName = model.Entity.Email;
 
-                var result = await manager.CreateAsync(model.User, model.Password);
+                var result = await manager.CreateAsync(model.Entity, model.Password);
                 if (result.Succeeded)
                 {
-                    User user = await manager.FindByNameAsync(model.User.Email);
+                    User user = await manager.FindByNameAsync(model.Entity.Email);
 
                     if (user != null)
                     {
@@ -82,7 +83,7 @@ namespace WebApplication.Controllers
 
             UsersViewModel model = new UsersViewModel
             {
-                User = user
+                Entity = user
             };
 
             return View(model);
@@ -91,14 +92,14 @@ namespace WebApplication.Controllers
         [HttpPost]
         public async Task<IActionResult> Edit(UsersViewModel model)
         {
-            if (ModelState.IsValid & CheckUniqueValues(model.User))
+            if (ModelState.IsValid & CheckUniqueValues(model.Entity))
             {
-                User user = await manager.FindByIdAsync(model.User.Id);
+                User user = await manager.FindByIdAsync(model.Entity.Id);
 
                 if (user != null)
                 {
-                    user.Email = model.User.Email;
-                    user.UserName = model.User.Email;
+                    user.Email = model.Entity.Email;
+                    user.UserName = model.Entity.Email;
 
                     var result = await manager.UpdateAsync(user);
 
@@ -128,11 +129,11 @@ namespace WebApplication.Controllers
 
             UsersViewModel model = new UsersViewModel
             {
-                User = user,
+                Entity = user,
                 DeleteViewModel = new DeleteViewModel
                 {
                     Message = "Do you want to delete this user?",
-                    IsForDelete = true
+                    IsDeleted = true
                 }
             };
 
@@ -142,7 +143,7 @@ namespace WebApplication.Controllers
         [HttpPost]
         public async Task<IActionResult> Delete(UsersViewModel model)
         {
-            User user = await manager.FindByIdAsync(model.User.Id);
+            User user = await manager.FindByIdAsync(model.Entity.Id);
 
             if (user == null)
                 return NotFound();
@@ -151,7 +152,7 @@ namespace WebApplication.Controllers
             
             if (result.Succeeded)
             {
-                model.DeleteViewModel.IsForDelete = false;
+                model.DeleteViewModel.IsDeleted = false;
 
                 if (User.Identity.IsAuthenticated & User.Identity.Name == user.UserName)
                 {
@@ -167,7 +168,7 @@ namespace WebApplication.Controllers
                     ModelState.AddModelError(string.Empty, error.Description);
             }
 
-            model.DeleteViewModel.IsForDelete = true;
+            model.DeleteViewModel.IsDeleted = true;
             return View(model);
         }
 
@@ -180,7 +181,7 @@ namespace WebApplication.Controllers
 
             UsersViewModel model = new UsersViewModel
             {
-                User = user
+                Entity = user
             };
 
             return View(model);
@@ -191,7 +192,7 @@ namespace WebApplication.Controllers
         {
             if (ModelState.IsValid)
             {
-                User user = await manager.FindByIdAsync(model.User.Id);
+                User user = await manager.FindByIdAsync(model.Entity.Id);
 
                 if (user == null)
                     return NotFound();

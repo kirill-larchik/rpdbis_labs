@@ -5,23 +5,18 @@ using System.Linq;
 using System.Threading.Tasks;
 using WebApplication.Models;
 
-namespace WebApplication.ViewModels
+namespace WebApplication.ViewModels.Entities
 {
-    public class GenresViewModel
+    public class GenresViewModel : IEntitiesViewModel<Genre>
     {
         [Display(Name = "Genres")]
-        public IEnumerable<Genre> Genres { get; set; }
-        public Genre Genre { get; set; }
+        public IEnumerable<Genre> Entities { get; set; }
+        [Display(Name = "Genre")]
+        public Genre Entity { get; set; }
 
-
-        [Display(Name = "Modification")]
-        public string Modification { get; set; }
-       
 
         public PageViewModel PageViewModel { get; set; }
-        public int CurrentHomePage { get; set; }
-
-
         public DeleteViewModel DeleteViewModel { get; set; }
+       
     }
 }

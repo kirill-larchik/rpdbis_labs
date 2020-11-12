@@ -8,6 +8,6 @@ namespace WebApplication.ViewModels
     public class DeleteViewModel
     {
         public string Message { get; set; }
-        public bool IsForDelete { get; set; }
+        public bool IsDeleted { get; set; }
     }
 }

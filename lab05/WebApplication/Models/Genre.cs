@@ -20,7 +20,7 @@ namespace WebApplication.Models
 
         [Required]
         [Display(Name = "Description")]
-        [StringLength(32, MinimumLength = 8, ErrorMessage = "Name length must be between 8 and 32 symbols.")]
+        [StringLength(32, MinimumLength = 8, ErrorMessage = "Description length must be between 8 and 32 symbols.")]
         public string GenreDescription { get; set; }
 
         public ICollection<Show> Shows { get; set; }

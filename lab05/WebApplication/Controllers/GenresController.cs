@@ -1,16 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Principal;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using System.Linq;
+using System.Threading.Tasks;
 using WebApplication.Data;
 using WebApplication.Models;
 using WebApplication.Services;
 using WebApplication.ViewModels;
+using WebApplication.ViewModels.Entities;
 
 namespace WebApplication.Controllers
 {
@@ -18,168 +15,159 @@ namespace WebApplication.Controllers
     public class GenresController : Controller
     {
         private readonly TvChannelContext db;
-        private readonly GenreService genreService;
-        private readonly ShowService showService;
 
-        public GenresController(TvChannelContext context, GenreService genreService, ShowService showService)
+        private readonly CachingService<GenresViewModel, Genre> caching;
+
+        public GenresController(TvChannelContext context, CachingService<GenresViewModel, Genre> cacheService)
         {
             db = context;
-            this.genreService = genreService;
-            this.showService = showService;
+            caching = cacheService;
         }
 
-        #region Index
-        public async Task<IActionResult> Index([FromQuery(Name = "page")] int page = 1)
+        public IActionResult Index([FromQuery(Name = "page")] int page = 1)
         {
-            IEnumerable<Genre> genres = await genreService.GetGenres();
-
-            int pageSize = 10;
-            PageViewModel pageViewModel = new PageViewModel(genres.Count(), page, pageSize);
-            genres = genres.Skip((pageViewModel.PageNumber - 1) * pageSize).Take(pageSize).ToList();
-
-            GenresViewModel model = new GenresViewModel
+            GenresViewModel model = null;
+            if (caching.HasEntity(page))
+                model = caching.GetEntity(page);
+            else
             {
-                PageViewModel = pageViewModel,
-                Genres = genres
-            };
+                model = new GenresViewModel();
+                model.PageViewModel = new PageViewModel { CurrentPage = page };
 
+                int count = db.Genres.Count();
+                int pageSize = 10;
+                model.PageViewModel.SetPages(count, pageSize);
+
+                IQueryable<Genre> genres = db.Genres.AsQueryable();
+                model.Entities = genres.Skip((model.PageViewModel.CurrentPage - 1) * pageSize).Take(pageSize).ToList();
+
+                caching.AddEntity(model);
+            }
+            
             return View(model);
         }
-        #endregion
 
-        #region Create
         public IActionResult Create(int page)
         {
-            GenresViewModel model = new GenresViewModel
-            {
-                CurrentHomePage = page
-            };
+            GenresViewModel model = new GenresViewModel();
+            model.PageViewModel = new PageViewModel { CurrentPage = page };
 
             return View(model);
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromForm] GenresViewModel model)
+        public async Task<IActionResult> Create(GenresViewModel model)
         {
-            if (ModelState.IsValid & await CheckUniqueValues(model.Genre))
+            if (ModelState.IsValid & CheckUniqueValues(model.Entity))
             {
-                await genreService.AddGenre(model.Genre);
+                await db.Genres.AddAsync(model.Entity);
+                await db.SaveChangesAsync();
 
-                IEnumerable<Genre> genres = await genreService.GetGenres();
-                int lastPage = genres.Count();
-                 
-                return RedirectToAction("Index", "Genres", new { page = lastPage });  
+                int page = db.Genres.Count();
+                caching.Clear(page);
+
+                return RedirectToAction("Index", "Genres", new { page = page });
             }
 
             return View(model);
         }
-        #endregion
 
-        #region Edit
         public async Task<IActionResult> Edit(int id, int page)
         {
-            Genre genre = await genreService.GetGenre(id);
+            Genre genre = await db.Genres.FindAsync(id);
+            if (genre != null)
+            {
+                GenresViewModel model = new GenresViewModel();
+                model.PageViewModel = new PageViewModel { CurrentPage = page };
+                model.Entity = genre;
 
+                return View(model);
+            }
+
+            return NotFound();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Edit(GenresViewModel model)
+        {
+            if (ModelState.IsValid & CheckUniqueValues(model.Entity))
+            {
+                Genre genre = db.Genres.Find(model.Entity.GenreId);
+                if (genre != null)
+                {
+                    genre.GenreName = model.Entity.GenreName;
+                    genre.GenreDescription = model.Entity.GenreDescription;
+
+                    db.Genres.Update(genre);
+                    await db.SaveChangesAsync();
+                    caching.Clear(model.PageViewModel.CurrentPage);
+
+                    return RedirectToAction("Index", "Genres", new { page = model.PageViewModel.CurrentPage });
+                }
+                else
+                {
+                    return NotFound();
+                }
+            }
+
+            return View(model);
+        }
+
+        public async Task<IActionResult> Delete(int id, int page)
+        {
+            Genre genre = await db.Genres.FindAsync(id);
             if (genre == null)
                 return NotFound();
 
-            GenresViewModel model = new GenresViewModel
-            {
-                Genre = genre,
-                CurrentHomePage = page
-            };
-
-            return View(model);
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Edit([FromForm] GenresViewModel model)
-        {       
-            if (ModelState.IsValid & await CheckUniqueValues(model.Genre))
-            {
-                Genre genre = await genreService.EditGenre(model.Genre);
-
-                if (genre == null)
-                    return NotFound();
-
-                return RedirectToAction("Index", "Genres", new { page = model.CurrentHomePage });
-            }
-
-            return View(model);
-        }
-        #endregion
-
-        #region Delete
-        public async Task<IActionResult> Delete(int id, int page)
-        {
-            bool deleteFlag = true;
+            bool deleteFlag = false;
             string message = "Do you want to delete this entity";
 
-            Genre genre = await genreService.GetGenre(id);
-            if (genre == null)
-            {
-                message = "Error. The entity not founded.";
-                deleteFlag = false;
-            }
-
-            IEnumerable<Show> shows = await showService.GetShows();
-            if (shows.Any(s => s.GenreId == genre.GenreId))
+            if (db.Shows.Any(s => s.GenreId == genre.GenreId))
                 message = "This entity has entities, which dependents from this. Do you want to delete this entity and other, which dependents from this?";
 
-            GenresViewModel model = new GenresViewModel
-            {
-                DeleteViewModel = new DeleteViewModel
-                {
-                    Message = message,
-                    IsForDelete = deleteFlag
-                },
-                
-                Genre = new Genre { GenreId = id },
-                CurrentHomePage = page
-            };
+            GenresViewModel model = new GenresViewModel();
+            model.Entity = genre;
+            model.PageViewModel = new PageViewModel { CurrentPage = page };
+            model.DeleteViewModel = new DeleteViewModel { Message = message, IsDeleted = deleteFlag };
 
             return View(model);
         }
 
         [HttpPost]
-        public async Task<IActionResult> Delete(int page, [FromForm] GenresViewModel model)
+        public async Task<IActionResult> Delete(GenresViewModel model)
         {
-            int id = model.Genre.GenreId;
-            await genreService.DeleteGenre(id);
+            Genre genre = await db.Genres.FindAsync(model.Entity.GenreId);
+            if (genre == null)
+                return NotFound();
 
-            model.DeleteViewModel = new DeleteViewModel
-            {
-                Message = $"The entity was successfully deleted.",
-                IsForDelete = false
-            };
+            db.Genres.Remove(genre);
+            await db.SaveChangesAsync();
+            caching.Clear(model.PageViewModel.CurrentPage);
 
-            model.CurrentHomePage = page;
+            model.DeleteViewModel = new DeleteViewModel { Message = "The entity was successfully deleted.", IsDeleted = true };
 
             return View(model);
         }
-        #endregion
 
-        private async Task<bool> CheckUniqueValues(Genre genre)
+        private bool CheckUniqueValues(Genre genre)
         {
             bool firstFlag = true;
             bool secondFlag = true;
 
-            IEnumerable<Genre> genres = await genreService.GetGenres();
-
-            Genre tempGenre = genres.FirstOrDefault(g => g.GenreName == genre.GenreName);
+            Genre tempGenre = db.Genres.FirstOrDefault(g => g.GenreName == genre.GenreName);
             if (tempGenre != null)
             {
-                if (tempGenre.GenreId != tempGenre.GenreId)
+                if (tempGenre.GenreId != genre.GenreId)
                 {
                     ModelState.AddModelError(string.Empty, "Another entity have this name. Please replace this to another.");
                     firstFlag = false;
                 }
             }
 
-            tempGenre = genres.FirstOrDefault(g => g.GenreDescription == genre.GenreDescription);
+            tempGenre = db.Genres.FirstOrDefault(g => g.GenreDescription == genre.GenreDescription);
             if (tempGenre != null)
             {
-                if (tempGenre.GenreId != tempGenre.GenreId)
+                if (tempGenre.GenreId != genre.GenreId)
                 {
                     ModelState.AddModelError(string.Empty, "Another entity have this name. Please replace this to another.");
                     firstFlag = false;

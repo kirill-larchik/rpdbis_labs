@@ -1,19 +1,23 @@
-﻿@model WebApplication.ViewModels.TimetablesViewModel
+﻿@model WebApplication.ViewModels.Entities.TimetablesViewModel
+@{
+    ViewData["Title"] = "Delete";
+}
 
 <div class="container text-center align-middle w-75">
     <form method="post">
         <p>
-            <input name="Timetable.TimetableId" value="@Model.Timetable.TimetableId" hidden />
+            <input hidden asp-for="Entity.TimetableId" value="@Model.Entity.TimetableId" />
+            <input hidden asp-for="PageViewModel.CurrentPage" value="@Model.PageViewModel.CurrentPage" />
         </p>
 
-        @if (Model.DeleteViewModel.IsForDelete)
+        @if (!Model.DeleteViewModel.IsDeleted)
         {
-            <h2 >Deletion process</h2>
+            <h2>Deletion process</h2>
 
             <p><h3>@Model.DeleteViewModel.Message</h3></p>
 
             <p><input type="submit" class="btn btn-danger w-50" value="Delete"></p>
-            <p><a asp-action="Index" asp-route-page="@Model.CurrentHomePage" class="btn btn-primary w-50">Back</a></p>
+            <p><a asp-action="Index" asp-route-page="@Model.PageViewModel.CurrentPage" class="btn btn-primary w-50">Back</a></p>
         }
         else
         {
@@ -21,7 +25,7 @@
 
             <p><h3>@Model.DeleteViewModel.Message</h3></p>
 
-            <p><a asp-action="Index" asp-route-page="@Model.CurrentHomePage" class="btn btn-primary w-50">Back</a></p>
+            <p><a asp-action="Index" asp-route-page="@Model.PageViewModel.CurrentPage" class="btn btn-primary w-50">Back</a></p>
         }
     </form>
 </div>

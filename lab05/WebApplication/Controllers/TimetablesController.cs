@@ -4,11 +4,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using WebApplication.Data;
 using WebApplication.Models;
 using WebApplication.Services;
 using WebApplication.ViewModels;
+using WebApplication.ViewModels.Entities;
 
 namespace WebApplication.Controllers
 {
@@ -16,177 +18,165 @@ namespace WebApplication.Controllers
     public class TimetablesController : Controller
     {
         private readonly TvChannelContext db;
-        private readonly TimetableService timetableService;
-        private readonly ShowService showService;
+        private readonly CachingService<TimetablesViewModel, Timetable> caching;
 
-        public TimetablesController(TvChannelContext context, TimetableService timetableService, ShowService showService)
+        public TimetablesController(TvChannelContext context, CachingService<TimetablesViewModel, Timetable> cachingService)
         {
             db = context;
-            this.timetableService = timetableService;
-            this.showService = showService;
+            caching = cachingService;
         }
 
-        #region Index
-        public async Task<IActionResult> Index([FromQuery(Name = "page")] int page = 1)
+        public IActionResult Index([FromQuery(Name = "page")] int page = 1)
         {
-            IEnumerable<Timetable> timetables = await timetableService.GetTimetables();
-
-            int pageSize = 10;
-
-            PageViewModel pageViewModel = new PageViewModel(timetables.Count(), page, pageSize);
-            timetables = timetables.Skip((pageViewModel.PageNumber - 1) * pageSize).Take(pageSize).ToList();
-
-            TimetablesViewModel model = new TimetablesViewModel
+            TimetablesViewModel model = null;
+            if (caching.HasEntity(page))
+                model = caching.GetEntity(page);
+            else
             {
-                Timetables = timetables,
-                PageViewModel = pageViewModel
-            };
+                model = new TimetablesViewModel();
+                model.PageViewModel = new PageViewModel { CurrentPage = page };
+
+                int count = db.Timetables.Count();
+                int pageSize = 10;
+                model.PageViewModel.SetPages(count, pageSize);
+
+                IQueryable<Timetable> timetables = db.Timetables.Include(t => t.Show).AsQueryable();
+                model.Entities = timetables.Skip((model.PageViewModel.CurrentPage - 1) * pageSize).Take(pageSize).ToList();
+
+                caching.AddEntity(model);
+            }
 
             return View(model);
         }
-        #endregion
 
-        #region Create
-        public async Task<IActionResult> Create(int page)
+        public ActionResult Create(int page)
         {
-            IEnumerable<Show> shows = await showService.GetShows();
-
-            TimetablesViewModel model = new TimetablesViewModel
-            {
-                Shows = shows,
-                CurrentHomePage = page
-            };
+            TimetablesViewModel model = new TimetablesViewModel();
+            model.PageViewModel = new PageViewModel { CurrentPage = page };
+            model.SelectList = new SelectList(db.Shows.ToList(), "ShowId", "Name");
 
             return View(model);
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromForm] TimetablesViewModel model)
+        public async Task<IActionResult> Create(TimetablesViewModel model)
         {
-            model.Shows = await showService.GetShows();
-            Show show = await showService.GetShow(model.Timetable.ShowId);
-
             if (ModelState.IsValid)
             {
-                // Можно ли по-другому?
-                if (model.Timetable.Year > show.ReleaseDate.Year ||
-                    (model.Timetable.Year == show.ReleaseDate.Year && model.Timetable.Month >= show.ReleaseDate.Month))
+                Show show = await db.Shows.FindAsync(model.Entity.ShowId);
+                if (model.Entity.Year > show.ReleaseDate.Year ||
+                        (model.Entity.Year == show.ReleaseDate.Year && model.Entity.Month >= show.ReleaseDate.Month))
                 {
-                    model.Timetable.EndTime = model.Timetable.StartTime + show.Duration;
+                    model.Entity.EndTime = model.Entity.StartTime + show.Duration;
 
-                    await timetableService.AddTimetable(model.Timetable);
+                    await db.Timetables.AddAsync(model.Entity);
+                    await db.SaveChangesAsync();
 
-                    IEnumerable<Timetable> timetables = await timetableService.GetTimetables();
-                    int page = timetables.Count();
+                    int page = db.Timetables.Count();
+                    caching.Clear(page);
 
                     return RedirectToAction("Index", "Timetables", new { page = page });
                 }
                 else
                 {
-                    ModelState.AddModelError(string.Empty, $"Month and(or) year must be more then release date ({show.ReleaseDate.ToString("d")})");
+                    ModelState.AddModelError(string.Empty, $"Mark year(month) must be more then release date ({show.ReleaseDate.ToString("d")})");
                 }
             }
 
-           
+            model.SelectList = new SelectList(db.Genres.ToList(), "GenreId", "GenreName");
             return View(model);
         }
-        #endregion
 
-        #region Edit
         public async Task<IActionResult> Edit(int id, int page)
         {
-            Timetable timetable = await timetableService.GetTimetable(id);
-            IEnumerable<Show> shows = await showService.GetShows();
-
-            TimetablesViewModel model = new TimetablesViewModel
+            Timetable timetable = await db.Timetables.Include(t => t.Show).FirstOrDefaultAsync(t => t.TimetableId == id);
+            if (timetable != null)
             {
-                Timetable = timetable,
-                Shows = shows,
-                CurrentHomePage = page
-            };
+                TimetablesViewModel model = new TimetablesViewModel();
+                model.PageViewModel = new PageViewModel { CurrentPage = page };
+                model.Entity = timetable;
+                model.SelectList = new SelectList(db.Shows.ToList(), "ShowId", "Name");
 
-            if (timetable == null)
-                return NotFound();
+                return View(model);
+            }
 
-            return View(model);
+            return NotFound();
         }
 
         [HttpPost]
-        public async Task<IActionResult> Edit([FromForm] TimetablesViewModel model)
+        public async Task<IActionResult> Edit(TimetablesViewModel model)
         {
-            model.Shows = await showService.GetShows();
-            Show show = await showService.GetShow(model.Timetable.ShowId);
-
             if (ModelState.IsValid)
             {
-                // Можно ли по-другому?
-                if (model.Timetable.Year > show.ReleaseDate.Year ||
-                   (model.Timetable.Year == show.ReleaseDate.Year && model.Timetable.Month >= show.ReleaseDate.Month))
+                Show show = await db.Shows.FindAsync(model.Entity.ShowId);
+                Timetable timetable = await db.Timetables.FindAsync(model.Entity.TimetableId);
+                if (timetable != null)
                 {
-                    model.Timetable.EndTime = model.Timetable.StartTime + show.Duration;
+                    if (model.Entity.Year > show.ReleaseDate.Year ||
+                        (model.Entity.Year == show.ReleaseDate.Year && model.Entity.Month >= show.ReleaseDate.Month))
+                    {
+                        timetable.DayOfWeek = model.Entity.DayOfWeek;
+                        timetable.Month = model.Entity.Month;
+                        timetable.Year = model.Entity.Year;
+                        timetable.ShowId = model.Entity.ShowId;
+                        timetable.StartTime = model.Entity.StartTime;
+                        timetable.EndTime = timetable.StartTime + show.Duration;
 
-                    Timetable timetable = await timetableService.EditTimetable(model.Timetable);
+                        db.Timetables.Update(timetable);
+                        await db.SaveChangesAsync();
+                        caching.Clear(model.PageViewModel.CurrentPage);
 
-                    if (timetable == null)
-                        return NotFound();
-
-                    return RedirectToAction("Index", "Timetables", new { page = model.CurrentHomePage });
+                        return RedirectToAction("Index", "Timetables", new { page = model.PageViewModel.CurrentPage });
+                    }
+                    else
+                    {
+                        ModelState.AddModelError(string.Empty, $"Mark year(month) must be more then release date ({show.ReleaseDate.ToString("d")})");
+                    }
                 }
                 else
                 {
-                    ModelState.AddModelError(string.Empty, $"Month and(or) year must be more then release date ({show.ReleaseDate.ToString("d")})");
+                    return NotFound();
                 }
             }
 
+            model.SelectList = new SelectList(db.Shows.ToList(), "ShowId", "Name");
             return View(model);
         }
-        #endregion
 
-        #region Delete
         public async Task<IActionResult> Delete(int id, int page)
         {
-            bool deleteFlag = true;
+            Timetable timetable = await db.Timetables.FindAsync(id);
+            if (timetable == null)
+                return NotFound();
+
+            bool deleteFlag = false;
             string message = "Do you want to delete this entity";
 
-            Timetable timetable = await timetableService.GetTimetable(id);
-            if (timetable == null)
-            {
-                message = "Error. The entity not founded.";
-                deleteFlag = false;
-            }
+            if (db.Timetables.Any(t => t.TimetableId == timetable.TimetableId))
+                message = "This entity has entities, which dependents from this. Do you want to delete this entity and other, which dependents from this?";
 
-            //TODO: Add table "Staff"
-            TimetablesViewModel model = new TimetablesViewModel
-            {
-                DeleteViewModel = new DeleteViewModel
-                {
-                    Message = message,
-                    IsForDelete = deleteFlag
-                },
-
-                Timetable = new Timetable { TimetableId = id },
-                CurrentHomePage = page
-            };
+            TimetablesViewModel model = new TimetablesViewModel();
+            model.Entity = timetable;
+            model.PageViewModel = new PageViewModel { CurrentPage = page };
+            model.DeleteViewModel = new DeleteViewModel { Message = message, IsDeleted = deleteFlag };
 
             return View(model);
         }
 
         [HttpPost]
-        public async Task<IActionResult> Delete(int page, [FromForm] TimetablesViewModel model)
+        public async Task<IActionResult> Delete(TimetablesViewModel model)
         {
-            int id = model.Timetable.TimetableId;
-            await timetableService.DeleteTimetable(id);
+            Timetable timetable = await db.Timetables.FindAsync(model.Entity.TimetableId);
+            if (timetable == null)
+                return NotFound();
 
-            model.DeleteViewModel = new DeleteViewModel
-            {
-                Message = $"The entity was successfully deleted.",
-                IsForDelete = false
-            };
+            db.Timetables.Remove(timetable);
+            await db.SaveChangesAsync();
+            caching.Clear(model.PageViewModel.CurrentPage);
 
-            model.CurrentHomePage = page;
+            model.DeleteViewModel = new DeleteViewModel { Message = "The entity was successfully deleted.", IsDeleted = true };
 
             return View(model);
         }
-        #endregion 
     }
 }

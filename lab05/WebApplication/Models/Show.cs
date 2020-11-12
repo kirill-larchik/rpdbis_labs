@@ -27,7 +27,7 @@ namespace WebApplication.Models
 
         [Required]
         [Display(Name = "Duration")]
-        [DataType(DataType.Duration)]
+        [DataType(DataType.Time)]
         [Range(typeof(TimeSpan), "00:15:00", "03:00:00")]
         public TimeSpan Duration { get; set; }
 

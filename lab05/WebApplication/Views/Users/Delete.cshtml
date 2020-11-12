@@ -1,15 +1,15 @@
-﻿@model WebApplication.ViewModels.UsersViewModel
+﻿@model WebApplication.ViewModels.Entities.UsersViewModel
 
 <div class="container text-center align-middle w-75">
     <form method="post">
         <p>
-            <input asp-for="User.Id" value="@Model.User.Id" hidden />
-            <input asp-for="DeleteViewModel.IsForDelete" value="@Model.DeleteViewModel.IsForDelete" hidden />
+            <input asp-for="Entity.Id" value="@Model.Entity.Id" hidden />
+            <input asp-for="DeleteViewModel.IsDeleted" value="@Model.DeleteViewModel.IsDeleted" hidden />
         </p>
 
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-        @if (Model.DeleteViewModel.IsForDelete)
+        @if (!Model.DeleteViewModel.IsDeleted)
         {
             <h2>Deletion process</h2>
 
