@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 using WebApplication.Models;
+using WebApplication.ViewModels.Filters;
 
 namespace WebApplication.ViewModels.Entities
 {
@@ -17,6 +18,7 @@ namespace WebApplication.ViewModels.Entities
 
         public PageViewModel PageViewModel { get; set; }
         public DeleteViewModel DeleteViewModel { get; set; }
-       
+        public SortViewModel SortViewModel { get; set; }
+        public GenresFilterViewModel GenresFilterViewModel { get; set; }
     }
 }

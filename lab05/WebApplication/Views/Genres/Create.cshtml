@@ -11,20 +11,21 @@
             <input hidden asp-for="PageViewModel.CurrentPage" value="@Model.PageViewModel.CurrentPage" />
         </div>
 
-        <div class="text-danger text-justify w-100 m-lg-0" asp-validation-summary="ModelOnly"></div>
+        <div asp-validation-summary="ModelOnly" class="text-danger text-justify w-100 m-lg-0" ></div>
 
         <p>
             <label asp-for="Entity.GenreName"></label><br />
             <input asp-for="Entity.GenreName" class="w-75" />
-        <p><span class="text-danger" asp-validation-for="Entity.GenreName"></span></p>
+        <p><span asp-validation-for="Entity.GenreName" class="text-danger" ></span></p>
 
         <p>
             <label asp-for="Entity.GenreDescription"></label><br />
             <input asp-for="Entity.GenreDescription" class="w-75" />
-        <p><span class="text-danger" asp-validation-for="Entity.GenreDescription"></span></p>
+        <p><span asp-validation-for="Entity.GenreDescription" class="text-danger"></span></p>
 
         <p>
             <input type="submit" value="Add" class="btn btn-success w-75" />
+
         <p><a asp-action="Index" asp-route-page="@Model.PageViewModel.CurrentPage" class="btn btn-danger w-75">Back</a></p>
     </form>
 </div>

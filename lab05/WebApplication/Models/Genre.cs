@@ -14,7 +14,7 @@ namespace WebApplication.Models
         public int GenreId { get; set; }
 
         [Required]
-        [Display(Name = "Name")]
+        [Display(Name = "Genre")]
         [StringLength(16, MinimumLength = 4, ErrorMessage = "Name length must be between 4 and 16 symbols.")]
         public string GenreName { get; set; }
 

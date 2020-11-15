@@ -45,7 +45,6 @@ namespace WebApplication.Models
         [Display(Name = "Mark year")]
         public int MarkYear { get; set; }
 
-        [Required]
         [Display(Name = "Genre")]
         public int GenreId { get; set; }
 

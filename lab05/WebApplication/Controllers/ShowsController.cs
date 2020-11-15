@@ -1,16 +1,18 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
 using WebApplication.Data;
+using WebApplication.Infrastructure;
 using WebApplication.Models;
 using WebApplication.Services;
 using WebApplication.ViewModels;
 using WebApplication.ViewModels.Entities;
+using WebApplication.ViewModels.Filters;
 
 namespace WebApplication.Controllers
 {
@@ -18,43 +20,67 @@ namespace WebApplication.Controllers
     public class ShowsController : Controller
     {
         private readonly TvChannelContext db;
+        private readonly CacheProvider cache;
 
-        private readonly CachingService<ShowsViewModel, Show> caching;
+        private const string filterKey = "shows";
 
-        public ShowsController(TvChannelContext context, CachingService<ShowsViewModel, Show> cachingService)
+        public ShowsController(TvChannelContext context, CacheProvider cacheProvider)
         {
             db = context;
-            caching = cachingService;
+            cache = cacheProvider;
         }
 
-        public IActionResult Index([FromQuery(Name = "page")] int page = 1)
+        public IActionResult Index(SortState sortState = SortState.ShowNameAsc, int page = 1)
         {
-            ShowsViewModel model = null;
-            if (caching.HasEntity(page))
-                model = caching.GetEntity(page);
-            else
+            ShowsFilterViewModel filter = HttpContext.Session.Get<ShowsFilterViewModel>(filterKey);
+            if (filter == null)
+            {
+                filter = new ShowsFilterViewModel { Name = string.Empty, GenreName = string.Empty };
+                HttpContext.Session.Set(filterKey, filter);
+            }
+
+            string modelKey = $"{typeof(Show).Name}-{page}-{sortState}-{filter.Name}-{filter.GenreName}";
+            if (!cache.TryGetValue(modelKey, out ShowsViewModel model))
             {
                 model = new ShowsViewModel();
-                model.PageViewModel = new PageViewModel { CurrentPage = page };
 
-                int count = db.Shows.Count();
+                IQueryable<Show> shows = GetSortedEntities(sortState, filter.Name, filter.GenreName);
+
+                int count = shows.Count();
                 int pageSize = 10;
-                model.PageViewModel.SetPages(count, pageSize);
+                model.PageViewModel = new PageViewModel(page, count, pageSize);
 
-                IQueryable<Show> shows = db.Shows.Include(s => s.Genre).AsQueryable();
-                model.Entities = shows.Skip((model.PageViewModel.CurrentPage - 1) * pageSize).Take(pageSize).ToList();
+                model.Entities = count == 0 ? new List<Show>() : shows.Skip((model.PageViewModel.CurrentPage - 1) * pageSize).Take(pageSize).ToList();
+                model.SortViewModel = new SortViewModel(sortState);
+                model.ShowsFilterViewModel = filter;
 
-                caching.AddEntity(model);
+                cache.Set(modelKey, model);
             }
 
             return View(model);
+        }
+
+        [HttpPost]
+        public IActionResult Index(ShowsFilterViewModel filterModel, int page)
+        {
+            ShowsFilterViewModel filter = HttpContext.Session.Get<ShowsFilterViewModel>(filterKey);
+            if (filter != null)
+            {
+                filter.Name = filterModel.Name;
+                filter.GenreName = filterModel.GenreName;
+
+                HttpContext.Session.Remove(filterKey);
+                HttpContext.Session.Set(filterKey, filter);
+            }
+
+            return RedirectToAction("Index", new { page });
         }
 
         public IActionResult Create(int page)
         {
             ShowsViewModel model = new ShowsViewModel();
             model.PageViewModel = new PageViewModel { CurrentPage = page };
-            model.SelectList = new SelectList(db.Genres.ToList(), "GenreId", "GenreName");
+            model.SelectList = db.Genres.ToList();
 
             return View(model);
         }
@@ -62,18 +88,35 @@ namespace WebApplication.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(ShowsViewModel model)
         {
-            if (ModelState.IsValid & CheckUniqueValues(model.Entity))
+            model.SelectList = db.Genres.ToList();
+
+            var genre = db.Genres.FirstOrDefault(g => g.GenreName == model.GenreName);
+            if (genre == null)
             {
-                await db.Shows.AddAsync(model.Entity);
-                await db.SaveChangesAsync();
-
-                int page = db.Shows.Count();
-                caching.Clear(page);
-
-                return RedirectToAction("Index", "Shows", new { page = page });
+                ModelState.AddModelError(string.Empty, "Please select genre from list.");
+                return View(model);
             }
 
-            model.SelectList = new SelectList(db.Genres.ToList(), "GenreId", "GenreName");
+            if (ModelState.IsValid & CheckUniqueValues(model.Entity))
+            {
+                if (model.Entity.MarkYear > model.Entity.ReleaseDate.Year ||
+                    (model.Entity.MarkYear == model.Entity.ReleaseDate.Year && model.Entity.MarkMonth >= model.Entity.ReleaseDate.Month))
+                {
+                    model.Entity.GenreId = genre.GenreId;
+
+                    await db.Shows.AddAsync(model.Entity);
+                    await db.SaveChangesAsync();
+
+                    cache.Clean();
+
+                    return RedirectToAction("Index");
+                }
+                else
+                {
+                    ModelState.AddModelError(string.Empty, "Mark year(month) must be more then release date.");
+                }
+            }
+
             return View(model);
         }
 
@@ -85,7 +128,8 @@ namespace WebApplication.Controllers
                 ShowsViewModel model = new ShowsViewModel();
                 model.PageViewModel = new PageViewModel { CurrentPage = page };
                 model.Entity = show;
-                model.SelectList = new SelectList(db.Genres.ToList(), "GenreId", "GenreName");
+                model.SelectList = db.Genres.ToList();
+                model.GenreName = model.Entity.Genre.GenreName;
 
                 return View(model);
             }
@@ -96,6 +140,15 @@ namespace WebApplication.Controllers
         [HttpPost]
         public async Task<IActionResult> Edit(ShowsViewModel model)
         {
+            model.SelectList = db.Genres.ToList();
+
+            var genre = db.Genres.FirstOrDefault(g => g.GenreName == model.GenreName);
+            if (genre == null)
+            {
+                ModelState.AddModelError(string.Empty, "Please select genre from list.");
+                return View(model);
+            }
+
             if (ModelState.IsValid & CheckUniqueValues(model.Entity))
             {
                 Show show = await db.Shows.FindAsync(model.Entity.ShowId);
@@ -110,12 +163,15 @@ namespace WebApplication.Controllers
                         show.Mark = model.Entity.Mark;
                         show.MarkMonth = model.Entity.MarkMonth;
                         show.MarkYear = model.Entity.MarkYear;
-                        show.GenreId = model.Entity.GenreId;
+
+                        show.GenreId = genre.GenreId;
+
                         show.Description = model.Entity.Description;
 
                         db.Shows.Update(show);
                         await db.SaveChangesAsync();
-                        caching.Clear(model.PageViewModel.CurrentPage);
+
+                        cache.Clean();
 
                         return RedirectToAction("Index", "Shows", new { page = model.PageViewModel.CurrentPage });
                     }
@@ -130,7 +186,6 @@ namespace WebApplication.Controllers
                 }
             }
 
-            model.SelectList = new SelectList(db.Genres.ToList(), "GenreId", "GenreName");
             return View(model);
         }
 
@@ -176,7 +231,8 @@ namespace WebApplication.Controllers
 
             db.Shows.Remove(show);
             await db.SaveChangesAsync();
-            caching.Clear(model.PageViewModel.CurrentPage);
+
+            cache.Clean();
 
             model.DeleteViewModel = new DeleteViewModel { Message = "The entity was successfully deleted.", IsDeleted = true };
 
@@ -212,6 +268,39 @@ namespace WebApplication.Controllers
                 return true;
             else
                 return false;
+        }
+
+        private IQueryable<Show> GetSortedEntities(SortState sortState, string name, string genreName)
+        {
+            IQueryable<Show> shows = db.Shows.Include(s => s.Genre).AsQueryable();
+            switch (sortState)
+            {
+                case SortState.ShowNameAsc:
+                    shows = shows.OrderBy(s => s.Name);
+                    break;
+                case SortState.ShowNameDesc:
+                    shows = shows.OrderByDescending(s => s.Name);
+                    break;
+                case SortState.ShowDescriptionAsc:
+                    shows = shows.OrderBy(s => s.Description);
+                    break;
+                case SortState.ShowDescriptionDesc:
+                    shows = shows.OrderByDescending(s => s.Description);
+                    break;
+                case SortState.GenreNameAsc:
+                    shows = shows.OrderBy(s => s.Genre.GenreName);
+                    break;
+                case SortState.GenreNameDesc:
+                    shows = shows.OrderByDescending(s => s.Genre.GenreName);
+                    break;
+            }
+
+            if (!string.IsNullOrEmpty(name))
+                shows = shows.Where(s => s.Name.Contains(name)).AsQueryable();
+            if (!string.IsNullOrEmpty(genreName))
+                shows = shows.Where(s => s.Genre.GenreName.Contains(genreName)).AsQueryable();
+
+            return shows;
         }
     }
 }

@@ -27,5 +27,6 @@ namespace WebApplication.ViewModels.Entities
 
         public PageViewModel PageViewModel { get; set; }
         public DeleteViewModel DeleteViewModel { get; set; }
+        public SortViewModel SortViewModel { get; set; }
     }
 }

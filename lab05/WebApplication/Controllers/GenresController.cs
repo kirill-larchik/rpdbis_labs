@@ -1,13 +1,17 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.Extensions.Caching.Memory;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using WebApplication.Data;
+using WebApplication.Infrastructure;
 using WebApplication.Models;
 using WebApplication.Services;
 using WebApplication.ViewModels;
 using WebApplication.ViewModels.Entities;
+using WebApplication.ViewModels.Filters;
 
 namespace WebApplication.Controllers
 {
@@ -15,42 +19,68 @@ namespace WebApplication.Controllers
     public class GenresController : Controller
     {
         private readonly TvChannelContext db;
+        private readonly CacheProvider cache;
 
-        private readonly CachingService<GenresViewModel, Genre> caching;
+        private const string filterKey = "genres";
 
-        public GenresController(TvChannelContext context, CachingService<GenresViewModel, Genre> cacheService)
+        public GenresController(TvChannelContext context, CacheProvider cacheProvider)
         {
             db = context;
-            caching = cacheService;
+            cache = cacheProvider;
         }
 
-        public IActionResult Index([FromQuery(Name = "page")] int page = 1)
+        public IActionResult Index(SortState sortState = SortState.GenreNameAsc, int page = 1)
         {
-            GenresViewModel model = null;
-            if (caching.HasEntity(page))
-                model = caching.GetEntity(page);
-            else
+            GenresFilterViewModel filter = HttpContext.Session.Get<GenresFilterViewModel>(filterKey);
+            if (filter == null)
+            {
+                filter = new GenresFilterViewModel { GenreName = string.Empty, GenreDescription = string.Empty };
+                HttpContext.Session.Set(filterKey, filter);
+            }
+
+            string modelKey = $"{typeof(Genre).Name}-{page}-{sortState}-{filter.GenreName}-{filter.GenreDescription}";
+            if (!cache.TryGetValue(modelKey, out GenresViewModel model))
             {
                 model = new GenresViewModel();
-                model.PageViewModel = new PageViewModel { CurrentPage = page };
 
-                int count = db.Genres.Count();
+                IQueryable<Genre> genres = GetSortedEntities(sortState, filter.GenreName, filter.GenreDescription);
+
+                int count = genres.Count();
                 int pageSize = 10;
-                model.PageViewModel.SetPages(count, pageSize);
+                model.PageViewModel = new PageViewModel(page, count, pageSize);
 
-                IQueryable<Genre> genres = db.Genres.AsQueryable();
-                model.Entities = genres.Skip((model.PageViewModel.CurrentPage - 1) * pageSize).Take(pageSize).ToList();
+                model.Entities = count == 0 ? new List<Genre>() : genres.Skip((model.PageViewModel.CurrentPage - 1) * pageSize).Take(pageSize).ToList();
+                model.SortViewModel = new SortViewModel(sortState);
+                model.GenresFilterViewModel = filter;
 
-                caching.AddEntity(model);
+                cache.Set(modelKey, model);
             }
-            
+
             return View(model);
+        }
+
+        [HttpPost]
+        public IActionResult Index(GenresFilterViewModel filterModel, int page)
+        {
+            GenresFilterViewModel filter = HttpContext.Session.Get<GenresFilterViewModel>(filterKey);
+            if (filter != null)
+            {
+                filter.GenreName = filterModel.GenreName;
+                filter.GenreDescription = filterModel.GenreDescription;
+
+                HttpContext.Session.Remove(filterKey);
+                HttpContext.Session.Set(filterKey, filter);
+            }
+
+            return RedirectToAction("Index", new { page });
         }
 
         public IActionResult Create(int page)
         {
-            GenresViewModel model = new GenresViewModel();
-            model.PageViewModel = new PageViewModel { CurrentPage = page };
+            GenresViewModel model = new GenresViewModel
+            {
+                PageViewModel = new PageViewModel { CurrentPage = page }
+            };
 
             return View(model);
         }
@@ -63,10 +93,9 @@ namespace WebApplication.Controllers
                 await db.Genres.AddAsync(model.Entity);
                 await db.SaveChangesAsync();
 
-                int page = db.Genres.Count();
-                caching.Clear(page);
+                cache.Clean();
 
-                return RedirectToAction("Index", "Genres", new { page = page });
+                return RedirectToAction("Index", "Genres");
             }
 
             return View(model);
@@ -100,7 +129,8 @@ namespace WebApplication.Controllers
 
                     db.Genres.Update(genre);
                     await db.SaveChangesAsync();
-                    caching.Clear(model.PageViewModel.CurrentPage);
+
+                    cache.Clean();
 
                     return RedirectToAction("Index", "Genres", new { page = model.PageViewModel.CurrentPage });
                 }
@@ -142,12 +172,15 @@ namespace WebApplication.Controllers
 
             db.Genres.Remove(genre);
             await db.SaveChangesAsync();
-            caching.Clear(model.PageViewModel.CurrentPage);
+
+            cache.Clean();
 
             model.DeleteViewModel = new DeleteViewModel { Message = "The entity was successfully deleted.", IsDeleted = true };
 
             return View(model);
         }
+
+
 
         private bool CheckUniqueValues(Genre genre)
         {
@@ -178,6 +211,34 @@ namespace WebApplication.Controllers
                 return true;
             else
                 return false;
+        }
+
+        private IQueryable<Genre> GetSortedEntities(SortState sortState, string genreName, string genreDescription)
+        {
+            IQueryable<Genre> genres = db.Genres.AsQueryable();
+
+            switch (sortState)
+            {
+                case SortState.GenreNameAsc:
+                    genres = genres.OrderBy(g => g.GenreName);
+                    break;
+                case SortState.GenreNameDesc:
+                    genres = genres.OrderByDescending(g => g.GenreName);
+                    break;
+                case SortState.GenreDescriptionAsc:
+                    genres = genres.OrderBy(g => g.GenreDescription);
+                    break;
+                case SortState.GenreDescriptionDesc:
+                    genres = genres.OrderByDescending(g => g.GenreDescription);
+                    break;
+            }
+
+            if (!string.IsNullOrEmpty(genreName))
+                genres = genres.Where(g => g.GenreName.Contains(genreName)).AsQueryable();
+            if (!string.IsNullOrEmpty(genreDescription))
+                genres = genres.Where(g => g.GenreDescription.Contains(genreDescription)).AsQueryable();
+
+            return genres;
         }
     }
 }

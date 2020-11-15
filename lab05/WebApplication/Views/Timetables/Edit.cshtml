@@ -31,7 +31,13 @@
 
         <p>
             <label asp-for="Entity.ShowId"></label><br />
-            <select asp-for="Entity.ShowId" asp-items="Model.SelectList" class="w-75"></select>
+            <input type="search" list="shows" asp-for="ShowName" class="w-75" />
+            <datalist id="shows">
+                @foreach (var item in Model.SelectList)
+                {
+                    <option value="@item.Name"></option>
+                }
+            </datalist>
         <p><span asp-validation-for="Entity.ShowId" class="text-danger"></span></p>
 
         <p>

@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using WebApplication.Data;
+using WebApplication.Midelware;
 using WebApplication.Models;
 using WebApplication.Services;
 using WebApplication.ViewModels.Entities;
@@ -36,12 +37,10 @@ namespace WebApplication
             services.AddIdentity<User, IdentityRole>()
                 .AddEntityFrameworkStores<ApplicationContext>();
 
-            services.AddTransient<CachingService<GenresViewModel, Genre>>();
-            services.AddTransient<CachingService<ShowsViewModel, Show>>();
-            services.AddTransient<CachingService<TimetablesViewModel, Timetable>>();
+            services.AddTransient<CacheProvider>();
 
             services.AddMemoryCache();
-
+            services.AddSession();
             services.AddControllersWithViews();
         }
 
@@ -57,11 +56,14 @@ namespace WebApplication
                 app.UseHsts();
             }
 
+            app.UseSession();
             app.UseHttpsRedirection();
             app.UseStaticFiles();
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
+
+            app.UseRoleInitializer();
 
             app.UseEndpoints(endpoints =>
             {

@@ -6,6 +6,11 @@
 <div class="container text-center w-50">
     <form method="post">
         <h2>Create a new entity</h2>
+
+        <div>
+            <input hidden asp-for="PageViewModel.CurrentPage" value="@Model.PageViewModel.CurrentPage" />
+        </div>
+
         <div asp-validation-summary="ModelOnly" class="text-danger text-justify w-100 m-lg-0"></div>
 
         <p>
@@ -25,7 +30,13 @@
 
         <p>
             <label asp-for="Entity.ShowId"></label><br />
-            <select asp-for="Entity.ShowId" asp-items="Model.SelectList" class="w-75"></select>
+            <input type="search" list="shows" asp-for="ShowName" class="w-75" />
+            <datalist id="shows">
+                @foreach (var item in Model.SelectList)
+                {
+                    <option value="@item.Name"></option>
+                }
+            </datalist>
         <p><span asp-validation-for="Entity.ShowId" class="text-danger"></span></p>
 
         <p>

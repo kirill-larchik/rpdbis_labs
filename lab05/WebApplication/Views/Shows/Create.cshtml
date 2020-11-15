@@ -6,7 +6,12 @@
 <div class="container text-center w-50">
     <form method="post">
         <h2>Create a new entity</h2>
-        <div asp-validation-summary="ModelOnly" class="text-danger text-justify w-100 m-lg-0"></div>
+
+        <div>
+            <input hidden asp-for="PageViewModel.CurrentPage" value="@Model.PageViewModel.CurrentPage" />
+        </div>
+
+        <div asp-validation-summary="ModelOnly" class="text-danger text-center w-100 m-lg-0"></div>
 
         <p>
             <label asp-for="Entity.Name"></label><br />
@@ -20,7 +25,7 @@
 
         <p>
             <label asp-for="Entity.Duration"></label><br />
-            <input asp-for="Entity.Duration" class="w-75" />
+            <input type="time" step="1" asp-for="Entity.Duration" class="w-75" />
         <p><span asp-validation-for="Entity.Duration" class="text-danger"></span></p>
 
         <p>
@@ -40,7 +45,13 @@
 
         <p>
             <label asp-for="Entity.GenreId"></label><br />
-            <select asp-for="Entity.GenreId" asp-items="Model.SelectList" class="w-75"></select>
+            <input type="search" list="genres" asp-for="GenreName" class="w-75" />
+            <datalist id="genres">
+                @foreach (var item in Model.SelectList)
+                {
+                    <option value="@item.GenreName"></option>
+                }
+            </datalist>
         <p><span asp-validation-for="Entity.GenreId" class="text-danger"></span></p>
 
         <p>
