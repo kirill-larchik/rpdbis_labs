@@ -76,5 +76,3 @@ GO
 ALTER TABLE dbo.Staff WITH CHECK ADD CONSTRAINT FK_Staff_Positions FOREIGN KEY(PositionId)
 REFERENCES dbo.Positions (PositionId) ON DELETE CASCADE
 GO
-ALTER TABLE dbo.Timetables WITH CHECK ADD CONSTRAINT Check_EndTime CHECK(EndTime > StartTime)
-GO

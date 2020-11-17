@@ -194,7 +194,7 @@ BEGIN
 	END
 
 	-- ID телепередачи
-	SET @ShowId = RAND(501-1) + 1 
+	SET @ShowId = RAND(20001-1) + 1 
 
 	-- Название организации.
 	SET @MinLetters = 12;
@@ -211,7 +211,7 @@ BEGIN
 		SET @i += 1
 	END
 
-	INSERT INTO Appeals (FullName, Organization, GoalRequest) SELECT @AppealFullName,  @AppealOrganization, @GoalRequest
+	INSERT INTO Appeals (FullName, Organization, ShowId, GoalRequest) SELECT @AppealFullName, @AppealOrganization, @ShowId, @GoalRequest
 
 	SET @RowIndex += 1
 END
@@ -242,7 +242,7 @@ BEGIN
 END
 
 -- Таблица "Staff".
-SET @RowCount = 500
+SET @RowCount = 20000
 SET @RowIndex = 1
 
 WHILE @RowIndex <= @RowCount
