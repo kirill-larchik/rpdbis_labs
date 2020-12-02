@@ -1,0 +1,273 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shows</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.0/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body>
+    <h2 class="text-center">Table "Shows"</h2>
+
+    <form name="showForm">
+        <input type="hidden" id="idIn" name="idIn" value=0 />
+        <div class="form-group">
+            <label Добавить>Name:</label>
+            <input id="nameIn" name="nameIn" />
+
+            <label Добавить>Release Date:</label>
+            <input type="date" id="releaseDateIn" name="releaseDateIn" />
+
+            <label Добавить>Duration:</label>
+            <input type="time" step="1" id="durationIn" name="durationIn" />
+
+            <label Добавить>Mark:</label>
+            <input type="number" id="markIn" name="markIn" />
+
+            <label Добавить>Mark month:</label>
+            <input type="number" id="markMonthIn" name="markMonthIn" />
+
+            <label Добавить>Mark year:</label>
+            <input type="number" id="markYearIn" name="markYearIn" />
+        </div>
+        <div class="form-group">
+            <label Добавить>Genre:</label>
+            <select id="genreIn" name="genreIn">
+            </select>
+
+            <label Добавить>Description:</label>
+            <input id="descriptionIn" name="descriptionIn" />
+
+            <button type="submit" id="submit" class="btn btn-primary">Save</button>
+            <a id="reset" onclick="reset()" class="btn btn-primary text-white">Reset</a>
+        </div>
+    </form>
+
+    <table class="table table-striped text-break">
+        <thead class="thead-dark">
+            <tr>
+                <th>Id</th>
+                <th>Name</th>
+                <th>Release date</th>
+                <th>Duration</th>
+                <th>Mark</th>
+                <th>Mark month</th>
+                <th>Mark Year</th>
+                <th>Genre</th>
+                <th>Description</th>
+                <th>Modification</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+    <script>
+        async function GetShows() {
+            const response = await fetch("/api/shows", {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+
+            if (response.ok == true) {
+                const shows = await response.json();
+                let rows = document.querySelector("tbody");
+                shows.forEach(s => {
+                    rows.append(row(s));
+                });
+            }
+        }
+
+        async function GetShow(id) {
+            const response = await fetch("/api/shows/" + id, {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const show = await response.json();
+                const form = document.forms["showForm"];
+                form.elements["idIn"].value = show.id;
+                form.elements["nameIn"].value = show.name;
+                form.elements["releaseDateIn"].value = show.releaseDate.substring(0, 10);
+                form.elements["durationIn"].value = show.duration;
+                form.elements["markIn"].value = show.mark;
+                form.elements["markMonthIn"].value = show.markMonth;
+                form.elements["markYearIn"].value = show.markYear;
+                form.elements["genreIn"].selectedIndex = show.genreId - 1;
+                form.elements["descriptionIn"].value = show.description;
+            }
+        }
+
+        async function CreateUser(showId, showName, showReleaseDate, showDuration, showMark, showMarkMonth, showMarkYear, showGenreId, showDescription) {
+            const response = await fetch("api/shows", {
+                method: "POST",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: parseInt(showId, 10),
+                    name: showName,
+                    releaseDate: showReleaseDate,
+                    duration: showDuration,
+                    mark: parseInt(showMark, 10),
+                    markMonth: parseInt(showMarkMonth, 10),
+                    markYear: parseInt(showMarkYear, 10),
+                    genreId: parseInt(showGenreId, 10),
+                    description: showDescription
+                })
+            });
+            if (response.ok === true) {
+                const user = await response.json();
+                reset();
+                document.querySelector("tbody").append(row(user));
+            }
+        }
+
+        async function EditUser(showId, showName, showReleaseDate, showDuration, showMark, showMarkMonth, showMarkYear, showGenreId, showDescription) {
+            const response = await fetch("/api/shows", {
+                method: "PUT",
+                headers: {"Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: parseInt(showId, 10),
+                    name: showName,
+                    releaseDate: showReleaseDate,
+                    duration: showDuration,
+                    mark: parseInt(showMark, 10),
+                    markMonth: parseInt(showMarkMonth, 10),
+                    markYear: parseInt(showMarkYear, 10),
+                    genreId: parseInt(showGenreId, 10),
+                    description: showDescription
+                })
+            });
+            if (response.ok === true) {
+                const show = await response.json();
+                reset();
+                document.querySelector("tr[data-rowid='" + show.id + "']").replaceWith(row(show));
+            }
+        }
+
+        async function DeleteShow(id) {
+            const response = await fetch("/api/shows/" + id, {
+                method: "DELETE",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const show = await response.json();
+                document.querySelector("tr[data-rowid='" + show.id + "']").remove();
+            }
+        }
+
+        function row(show) {
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-rowid", show.id);
+
+            const idTd = document.createElement("td");
+            idTd.append(show.id);
+            tr.append(idTd);
+
+            const nameTd = document.createElement("td");
+            nameTd.append(show.name);
+            tr.append(nameTd);
+
+            const releaseDateTd = document.createElement("td");
+            releaseDateTd.append(show.releaseDate.substring(0, 10));
+            tr.append(releaseDateTd);
+
+            const durationTd = document.createElement("td");
+            durationTd.append(show.duration);
+            tr.append(durationTd);
+
+            const markTd = document.createElement("td");
+            markTd.append(show.mark);
+            tr.append(markTd);
+
+            const markMonthTd = document.createElement("td");
+            markMonthTd.append(show.markMonth);
+            tr.append(markMonthTd);
+
+            const markYearTd = document.createElement("td");
+            markYearTd.append(show.markYear);
+            tr.append(markYearTd);
+
+            const genreTd = document.createElement("td");
+            genreTd.append(show.genre);
+            tr.append(genreTd);
+
+            const descriptionTd = document.createElement("td");
+            descriptionTd.append(show.description);
+            tr.append(descriptionTd);
+
+            const linksTd = document.createElement("td");
+
+            const editLink = document.createElement("a");
+            editLink.setAttribute("data-id", show.id);
+            editLink.setAttribute("style", "cursor:pointer;padding:15px;");
+            editLink.append("Change");
+            editLink.addEventListener("click", e => {
+                e.preventDefault();
+                GetShow(show.id);
+            });
+            linksTd.append(editLink);
+
+            const removeLink = document.createElement("a");
+            removeLink.setAttribute("data-id", show.id);
+            removeLink.setAttribute("style", "cursor:pointer;padding:15px;");
+            removeLink.append("Delete");
+            removeLink.addEventListener("click", e => {
+                e.preventDefault();
+                DeleteShow(show.id);
+            });
+
+            linksTd.append(removeLink);
+            tr.appendChild(linksTd);
+
+            return tr;
+        }
+
+        function reset() {
+            const form = document.forms["showForm"];
+            form.reset();
+            form.elements["idIn"].value = 0;
+        }
+
+        document.getElementById("reset").click(function (e) {
+            e.preventDefault();
+            reset();
+        })
+
+        document.forms["showForm"].addEventListener("submit", e => {
+            e.preventDefault();
+            const form = document.forms["showForm"];
+            const id = form.elements["idIn"].value;
+            const name = form.elements["nameIn"].value;
+            const releaseDate = form.elements["releaseDateIn"].value;
+            const duration = form.elements["durationIn"].value;
+            const mark = form.elements["markIn"].value;
+            const markMonth = form.elements["markMonthIn"].value;
+            const markYear = form.elements["markYearIn"].value;
+            const genreId = form.elements["genreIn"].selectedIndex;
+            const description = form.elements["descriptionIn"].value;
+            if (id == 0)
+                CreateUser(id, name, releaseDate, duration, mark, markMonth, markYear, genreId, description);
+            else
+                EditUser(id, name, releaseDate, duration, mark, markMonth, markYear, genreId, description);
+        });
+
+        async function GetGenres() {
+            const response = await fetch("/api/shows/genres", {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok == true) {
+                const genres = await response.json();
+                let select = document.getElementById("genreIn");
+                var i = 0;
+                genres.forEach(g => {
+                    select.options[i] = new Option(g.genreName, g.genreId);
+                    i += 1;
+                })
+            }
+        }
+
+        GetShows();
+        GetGenres();
+    </script>
+</body>
+</html>
