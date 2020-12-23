@@ -24,6 +24,7 @@ namespace WebApplication.Shows
         {
             IEnumerable<Show> shows = _context.Shows.Include(s => s.Genre).ToList();
             ShowsGridView.DataSource = shows;
+            GenresSqlDataSource.Select(DataSourceSelectArguments.Empty);
             ShowsGridView.DataBind();
         }
 

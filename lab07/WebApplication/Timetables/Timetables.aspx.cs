@@ -25,6 +25,7 @@ namespace WebApplication.Timetables
         {
             IEnumerable<Timetable> timetables = _context.Timetables.Include(t => t.Show).OrderBy(t => t.TimetableId).ToList();
             TimetablesGridView.DataSource = timetables;
+            ShowsSqlDataSource.Select(DataSourceSelectArguments.Empty);
             TimetablesGridView.DataBind();
         }
 
