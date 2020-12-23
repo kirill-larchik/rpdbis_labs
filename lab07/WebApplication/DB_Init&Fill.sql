@@ -119,7 +119,7 @@ BEGIN
 END
 
 -- Таблица "Shows".
-SET @RowCount = 20000;
+SET @RowCount = 5000;
 SET @RowIndex = 1;
 
 WHILE @RowIndex <= @RowCount
